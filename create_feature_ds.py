@@ -304,6 +304,10 @@ def hists_feature(P, center, bins=10, min_r=-0.5, max_r=0.5):
     return hists
 
 
+def compute_features_geof(cloud, geof):
+    return np.mean(geof, axis=0)
+
+
 def compute_features(cloud, n_curv=30, k_curv=14, k_far=30, n_normal=30, bins=10, min_r=-0.5, max_r=0.5):
     """Compute features from a point cloud P. The features of a point cloud are:
     - Mean color 
@@ -706,7 +710,7 @@ def superpoint_graph(xyz, rgb, k_nn_adj=10, k_nn_geof=45, lambda_edge_weight=1, 
     uni_senders, senders_idxs, senders_counts = np.unique(senders, return_index=True, return_counts=True)
 
     #print("{0} edges filtered, {1} unique edges".format(n_filtered, len(uni_edges)))
-    return n_com, n_sedg, components, senders, receivers, uni_senders, senders_idxs, senders_counts
+    return n_com, n_sedg, components, senders, receivers, uni_senders, senders_idxs, senders_counts, geof
 
 
 def process_scenes(id, args, min_i, max_i):
@@ -750,7 +754,7 @@ def process_scenes(id, args, min_i, max_i):
         p_gt = Partition(partition=partition_vec, uni=partition_uni, idxs=partition_idxs, counts=partition_counts)
         
         # n_com, n_sedg, components, senders, receivers, uni_senders, senders_idxs, senders_counts
-        n_sps, n_edges, sp_idxs, senders, receivers, uni_senders, senders_idxs, senders_counts = superpoint_graph(
+        n_sps, n_edges, sp_idxs, senders, receivers, uni_senders, senders_idxs, senders_counts, geof = superpoint_graph(
             xyz=P[:, :3],
             rgb=P[:, 3:],
             reg_strength=0.3)
@@ -775,6 +779,7 @@ def process_scenes(id, args, min_i, max_i):
         hf.create_dataset("partition_vec", data=partition_vec)
         hf.create_dataset("assigned_partition_vec", data=assigned_partition_vec, dtype=np.int32)
         hf.create_dataset("n_sps", data=np.array([n_sps], dtype=np.int32))
+        #n_ft = geof.shape[1]
         if n_ft is None:
             sp_idxs_ = sp_idxs[0]
             sp = P[sp_idxs_]
@@ -782,7 +787,6 @@ def process_scenes(id, args, min_i, max_i):
             n_ft = features.shape[0]
             print("feature vector has size of {0}".format(n_ft))
         all_features = np.zeros((n_sps, n_ft), dtype=np.float32)
-        #all_features = np.zeros((n_sps, 96, 6), dtype=np.float32)
         sps_sizes = []
         for k in range(n_sps):
             sp_idxs_ = sp_idxs[k]
@@ -790,15 +794,13 @@ def process_scenes(id, args, min_i, max_i):
             sp = P[sp_idxs_]
             sps_sizes.append(sp_idxs_.shape[0])
             features = compute_features(cloud=sp)
-            #features = pad_or_sample_points(P=sp, n=128)
-            #features = sample_far_points(P=sp, k_far=96)
+            #features = compute_features_geof(cloud=sp, geof=geof)
             all_features[k] = features
         mean_sps = np.mean(sps_sizes)
         sp_sizes.append(mean_sps)
         std_sps = np.std(sps_sizes)
         hf.create_dataset("mean_sps", data=np.array([mean_sps], dtype=np.float32))
         hf.create_dataset("std_sps", data=np.array([std_sps], dtype=np.float32))
-        # print("mean sps: {0:.2f}, std sps: {1:.2f}".format(mean_sps, std_sps))
 
         hf.create_dataset("n_edges", data=np.array([n_edges], dtype=np.int32))
 
