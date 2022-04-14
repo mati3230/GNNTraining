@@ -1,6 +1,7 @@
 import os
 import argparse
 import h5py
+import numpy as np
 
 def main():
     parser = argparse.ArgumentParser()
@@ -18,7 +19,7 @@ def main():
         print("Will delete scene {0}".format(file))
         os.remove(file_dir)
         n+=1
-    print("{0} scenes deleted".format(n))
+    print("{0} graphs deleted".format(n))
 
 if __name__ == "__main__":
     main()

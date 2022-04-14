@@ -26,8 +26,8 @@ def get_n_batches(dir, files, idx, n=-1):
     uni_senders = np.array(hf["uni_senders"], copy=True)
     senders_idxs = np.array(hf["senders_idxs"], copy=True)
     senders_counts = np.array(hf["senders_counts"], copy=True)
-    n_sps = np.array(hf["n_sps"], copy=True)
-    print(n_sps, uni_senders.shape[0])
+    #n_sps = np.array(hf["n_sps"], copy=True)
+    #print(n_sps, uni_senders.shape[0])
 
     if senders.shape[0] != y.shape[0]:
         raise Exception("Senders ({0}) have different shape than unions ({1})".format(senders.shape, y.shape))
@@ -60,8 +60,8 @@ def load_graph_example(dir, files, idx, p=1, n=-1, deterministic=False, iter_nr=
         uni_senders = np.array(hf["uni_senders"], copy=True)
         senders_idxs = np.array(hf["senders_idxs"], copy=True)
         senders_counts = np.array(hf["senders_counts"], copy=True)
-        n_sps = np.array(hf["n_sps"], copy=True)
-        print(n_sps, uni_senders.shape[0])
+        #n_sps = np.array(hf["n_sps"], copy=True)
+        #print(n_sps, uni_senders.shape[0])
         hf.close()
     
     n_edges = y.shape[0]
