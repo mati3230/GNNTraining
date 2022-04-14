@@ -846,7 +846,8 @@ def main(args):
         scenes.append(args.dataset + "/" + area_room + "/P.npz")
     #scenes = scenes[:10]
     wargs["scenes"] = scenes
-    mkdir("s3dis/graphs")
+
+    mkdir(args.out_dataset)
     # print("PID\tProgress\tScene\t|S|")
     process_range(workload=len(scenes), n_cpus=args.n_cpus, process_class=Process, target=process_scenes, args=wargs)
 
@@ -857,6 +858,10 @@ if __name__ == "__main__":
         "--dataset",
         type=str,
         default="./S3DIS_Scenes")
+    parser.add_argument(
+        "--out_dataset",
+        type=str,
+        default="s3dis/graphs")
     parser.add_argument(
         "--n_cpus",
         type=int,
