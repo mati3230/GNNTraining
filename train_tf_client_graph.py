@@ -71,7 +71,7 @@ class TFWorkerGraph(TFWorker):
         y_ = tf.cast(y, tf.float32)
         probs = tf.cast(probs, tf.float32)
         #print(probs.shape)
-        f_neg = 1.5
+        f_neg = 1
         #f_neg = 1
         pos_bce_loss = -y_ * tf.math.log(tf.where(probs == 0, probs+1e-6, probs)) * (2 - f_neg)
         neg_inp = 1-probs
