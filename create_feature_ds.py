@@ -304,6 +304,10 @@ def hists_feature(P, center, bins=10, min_r=-0.5, max_r=0.5):
     return hists
 
 
+def compute_features_geof(cloud, geof):
+    return np.mean(geof, axis=0)
+
+
 def compute_features(cloud, n_curv=30, k_curv=14, k_far=30, n_normal=30, bins=10, min_r=-0.5, max_r=0.5):
     """Compute features from a point cloud P. The features of a point cloud are:
     - Mean color 
@@ -617,88 +621,27 @@ def superpoint_graph(xyz, rgb, k_nn_adj=10, k_nn_geof=45, lambda_edge_weight=1, 
 
     in_component = np.array(in_component)
 
-    tri = Delaunay(xyz)
+    assigned_partition_vec = np.zeros((xyz.shape[0], ), dtype=np.uint32)
+    for i in range(n_com)
+        idxs = components[i]
+        assigned_partition_vec[idxs] = i
 
-    #interface select the edges between different components
-    #edgx and edgxr converts from tetrahedrons to edges
-    #done separatly for each edge of the tetrahedrons to limit memory impact
-    interface = in_component[tri.vertices[:, 0]] != in_component[tri.vertices[:, 1]]
-    edg1 = np.vstack((tri.vertices[interface, 0], tri.vertices[interface, 1]))
-    edg1r = np.vstack((tri.vertices[interface, 1], tri.vertices[interface, 0]))
-    interface = in_component[tri.vertices[:, 0]] != in_component[tri.vertices[:, 2]]
-    edg2 = np.vstack((tri.vertices[interface, 0], tri.vertices[interface, 2]))
-    edg2r = np.vstack((tri.vertices[interface, 2], tri.vertices[interface, 0]))
-    interface = in_component[tri.vertices[:, 0]] != in_component[tri.vertices[:, 3]]
-    edg3 = np.vstack((tri.vertices[interface, 0], tri.vertices[interface, 3]))
-    edg3r = np.vstack((tri.vertices[interface, 3], tri.vertices[interface, 0]))
-    interface = in_component[tri.vertices[:, 1]] != in_component[tri.vertices[:, 2]]
-    edg4 = np.vstack((tri.vertices[interface, 1], tri.vertices[interface, 2]))
-    edg4r = np.vstack((tri.vertices[interface, 2], tri.vertices[interface, 1]))
-    interface = in_component[tri.vertices[:, 1]] != in_component[tri.vertices[:, 3]]
-    edg5 = np.vstack((tri.vertices[interface, 1], tri.vertices[interface, 3]))
-    edg5r = np.vstack((tri.vertices[interface, 3], tri.vertices[interface, 1]))
-    interface = in_component[tri.vertices[:, 2]] != in_component[tri.vertices[:, 3]]
-    edg6 = np.vstack((tri.vertices[interface, 2], tri.vertices[interface, 3]))
-    edg6r = np.vstack((tri.vertices[interface, 3], tri.vertices[interface, 2]))
-    del tri, interface
-    edges = np.hstack((edg1, edg2, edg3, edg4 ,edg5, edg6, edg1r, edg2r,
-                       edg3r, edg4r ,edg5r, edg6r))
-    del edg1, edg2, edg3, edg4 ,edg5, edg6, edg1r, edg2r, edg3r, edg4r, edg5r, edg6r
-    edges = np.unique(edges, axis=1)
-    
-    if d_se_max > 0:
-        dist = np.sqrt(((xyz[edges[0,:]]-xyz[edges[1,:]])**2).sum(1))
-        edges = edges[:,dist<d_se_max]
-    
-    #---sort edges by alpha numeric order wrt to the components of their source/target---
-    n_edg = len(edges[0])
-    edge_comp = in_component[edges]
-    edge_comp_index = n_com * edge_comp[0,:] +  edge_comp[1,:]
-    order = np.argsort(edge_comp_index)
-    edges = edges[:, order]
-    edge_comp = edge_comp[:, order]
-    edge_comp_index = edge_comp_index[order]
-    #marks where the edges change components iot compting them by blocks
-    jump_edg = np.vstack((0, np.argwhere(np.diff(edge_comp_index)) + 1, n_edg)).flatten()
-    n_sedg = len(jump_edg) - 1
+    source = graph_nn["source"].astype(np.uint32)
+    target = graph_nn["target"].astype(np.uint32)
+    senders, receivers = libgeo.components_graph(assigned_partition_vec, source, target)
 
-    senders = []
-    receivers = []
-    uni_edges = []
-    #print("Total number of edges: {0}".format(n_sedg))
-    n_filtered = 0
-    #---compute the superedges features---
-    for i_sedg in range(0, n_sedg):
-        i_edg_begin = jump_edg[i_sedg]
-        i_edg_end = jump_edg[i_sedg + 1]
-        #ver_source = edges[0, range(i_edg_begin, i_edg_end)]
-        #ver_target = edges[1, range(i_edg_begin, i_edg_end)]
-        com_source = edge_comp[0, i_edg_begin]
-        com_target = edge_comp[1, i_edg_begin]
-        #xyz_source = xyz[ver_source, :]
-        #xyz_target = xyz[ver_target, :]
-        edge = (com_source, com_target)
-        if edge in uni_edges:
-            n_filtered += 1
-            continue
-        senders.append(com_source)
-        receivers.append(com_target)
-        inv_edge = (com_target, com_source)
-        uni_edges.append(inv_edge)
-    # bidirectional
-    tmp_senders = senders.copy()
-    senders.extend(receivers)
-    receivers.extend(tmp_senders)
-    senders = np.array(senders, dtype=np.uint32)
-    receivers = np.array(receivers, dtype=np.uint32)
+    # make each edge bidirectional
+    tmp_senders = np.array(senders, copy=True)
+    senders = np.hstack(senders[None, :], receivers[None, :])
+    receivers = np.hstack(receivers[None, :], tmp_senders[None, :])
 
-    # unique
-    edges = np.vstack((senders[None, :], receivers[None, :]))
+    # unique: filter multiple occurance of the same edges
+    edges = np.vstack((senders, receivers))
     uni_edges = np.unique(edges, axis=1)
     senders = uni_edges[0, :]
     receivers = uni_edges[1, :]
 
-    # sorted
+    # sorted them according to the senders 
     sortation = np.argsort(senders)
     senders = senders[sortation]
     receivers = receivers[sortation]
@@ -706,7 +649,7 @@ def superpoint_graph(xyz, rgb, k_nn_adj=10, k_nn_geof=45, lambda_edge_weight=1, 
     uni_senders, senders_idxs, senders_counts = np.unique(senders, return_index=True, return_counts=True)
 
     #print("{0} edges filtered, {1} unique edges".format(n_filtered, len(uni_edges)))
-    return n_com, n_sedg, components, senders, receivers, uni_senders, senders_idxs, senders_counts
+    return n_com, senders.shape[0], components, senders, receivers, uni_senders, senders_idxs, senders_counts, geof
 
 
 def process_scenes(id, args, min_i, max_i):
@@ -750,7 +693,7 @@ def process_scenes(id, args, min_i, max_i):
         p_gt = Partition(partition=partition_vec, uni=partition_uni, idxs=partition_idxs, counts=partition_counts)
         
         # n_com, n_sedg, components, senders, receivers, uni_senders, senders_idxs, senders_counts
-        n_sps, n_edges, sp_idxs, senders, receivers, uni_senders, senders_idxs, senders_counts = superpoint_graph(
+        n_sps, n_edges, sp_idxs, senders, receivers, uni_senders, senders_idxs, senders_counts, geof = superpoint_graph(
             xyz=P[:, :3],
             rgb=P[:, 3:],
             reg_strength=0.3)
@@ -775,6 +718,7 @@ def process_scenes(id, args, min_i, max_i):
         hf.create_dataset("partition_vec", data=partition_vec)
         hf.create_dataset("assigned_partition_vec", data=assigned_partition_vec, dtype=np.int32)
         hf.create_dataset("n_sps", data=np.array([n_sps], dtype=np.int32))
+        #n_ft = geof.shape[1]
         if n_ft is None:
             sp_idxs_ = sp_idxs[0]
             sp = P[sp_idxs_]
@@ -782,7 +726,6 @@ def process_scenes(id, args, min_i, max_i):
             n_ft = features.shape[0]
             print("feature vector has size of {0}".format(n_ft))
         all_features = np.zeros((n_sps, n_ft), dtype=np.float32)
-        #all_features = np.zeros((n_sps, 96, 6), dtype=np.float32)
         sps_sizes = []
         for k in range(n_sps):
             sp_idxs_ = sp_idxs[k]
@@ -790,15 +733,13 @@ def process_scenes(id, args, min_i, max_i):
             sp = P[sp_idxs_]
             sps_sizes.append(sp_idxs_.shape[0])
             features = compute_features(cloud=sp)
-            #features = pad_or_sample_points(P=sp, n=128)
-            #features = sample_far_points(P=sp, k_far=96)
+            #features = compute_features_geof(cloud=sp, geof=geof)
             all_features[k] = features
         mean_sps = np.mean(sps_sizes)
         sp_sizes.append(mean_sps)
         std_sps = np.std(sps_sizes)
         hf.create_dataset("mean_sps", data=np.array([mean_sps], dtype=np.float32))
         hf.create_dataset("std_sps", data=np.array([std_sps], dtype=np.float32))
-        # print("mean sps: {0:.2f}, std sps: {1:.2f}".format(mean_sps, std_sps))
 
         hf.create_dataset("n_edges", data=np.array([n_edges], dtype=np.int32))
 
