@@ -779,6 +779,7 @@ def process_scenes(id, args, min_i, max_i):
         #print("unions: {0}".format(np.mean(unions)))
         hf.close()
 
+        # TODO change iteration variable from i to smoething else
         progress = 100*(i-min_i+1)/(max_i - min_i)
         print("{0}\t{1:.2f}\t{2}\t{3}".format(id, progress, area_room_name, n_ft))
         #break
