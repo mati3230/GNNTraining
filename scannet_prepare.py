@@ -285,7 +285,7 @@ def main():
     parser.add_argument(
         "--upsampling",
         type=int,
-        default=4,
+        default=1,
         help="an object will have upsampling times #vertices points")
     parser.add_argument(
         "--scene",
@@ -318,6 +318,19 @@ def main():
     mscannet_dir = "./Scannet_Scenes"
     mkdir(mscannet_dir)
     scenes = os.listdir(scannet_dir)
+
+    scene_dict = {}
+    s_len = len("scene") + 4
+    uni_scenes = []
+    for i in range(len(scenes)):
+        scene = scenes[i]
+        key = scene[:s_len]
+        if key in scene_dict:
+            continue
+        scene_dict[key] = key
+        uni_scenes.append(scene)
+    scenes = uni_scenes
+
     special_objects = get_special_objects()
 
     if args.mode == "precalc":

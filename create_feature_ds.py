@@ -622,7 +622,7 @@ def superpoint_graph(xyz, rgb, k_nn_adj=10, k_nn_geof=45, lambda_edge_weight=1, 
     in_component = np.array(in_component)
 
     assigned_partition_vec = np.zeros((xyz.shape[0], ), dtype=np.uint32)
-    for i in range(n_com)
+    for i in range(n_com):
         idxs = components[i]
         assigned_partition_vec[idxs] = i
 
@@ -632,8 +632,8 @@ def superpoint_graph(xyz, rgb, k_nn_adj=10, k_nn_geof=45, lambda_edge_weight=1, 
 
     # make each edge bidirectional
     tmp_senders = np.array(senders, copy=True)
-    senders = np.hstack(senders[None, :], receivers[None, :])
-    receivers = np.hstack(receivers[None, :], tmp_senders[None, :])
+    senders = np.hstack((senders[None, :], receivers[None, :]))
+    receivers = np.hstack((receivers[None, :], tmp_senders[None, :]))
 
     # unique: filter multiple occurance of the same edges
     edges = np.vstack((senders, receivers))
@@ -670,6 +670,7 @@ def process_scenes(id, args, min_i, max_i):
     """
     #print(id, max_i, min_i, max_i - min_i)
     scenes = args["scenes"]
+    dataset = args["dataset"]
     n_ft = None
     sp_sizes = []
     for i in range(min_i, max_i):
@@ -681,9 +682,10 @@ def process_scenes(id, args, min_i, max_i):
         data = np.load(scene)
 
         # e.g. ./s3dis/graphs/Area1_conferenceRoom_1.h5 will be stored as new file
-        hf = h5py.File("./s3dis/graphs/" + area_room_name + ".h5", "w")
+        hf = h5py.File(dataset + "/graphs/" + area_room_name + ".h5", "w")
 
         P = data["P"]
+        #print("point cloud has {0} points".format(P.shape[0]))
         
         partition_vec = data["partition_vec"]
         partition_uni = data["partition_uni"]
@@ -696,7 +698,7 @@ def process_scenes(id, args, min_i, max_i):
         n_sps, n_edges, sp_idxs, senders, receivers, uni_senders, senders_idxs, senders_counts, geof = superpoint_graph(
             xyz=P[:, :3],
             rgb=P[:, 3:],
-            reg_strength=0.3)
+            reg_strength=0.7)
         #print("created {0} superpoints, have {1} uni senders".format(n_sps, uni_senders.shape[0]))
 
         assigned_partition_vec = np.zeros((P.shape[0], ), np.int32)
@@ -718,7 +720,7 @@ def process_scenes(id, args, min_i, max_i):
         hf.create_dataset("partition_vec", data=partition_vec)
         hf.create_dataset("assigned_partition_vec", data=assigned_partition_vec, dtype=np.int32)
         hf.create_dataset("n_sps", data=np.array([n_sps], dtype=np.int32))
-        #n_ft = geof.shape[1]
+        n_ft = geof.shape[1]
         if n_ft is None:
             sp_idxs_ = sp_idxs[0]
             sp = P[sp_idxs_]
@@ -732,8 +734,8 @@ def process_scenes(id, args, min_i, max_i):
             hf.create_dataset(str(k), data=sp_idxs_)
             sp = P[sp_idxs_]
             sps_sizes.append(sp_idxs_.shape[0])
-            features = compute_features(cloud=sp)
-            #features = compute_features_geof(cloud=sp, geof=geof)
+            #features = compute_features(cloud=sp)
+            features = compute_features_geof(cloud=sp, geof=geof)
             all_features[k] = features
         mean_sps = np.mean(sps_sizes)
         sp_sizes.append(mean_sps)
@@ -787,8 +789,9 @@ def main(args):
         scenes.append(args.dataset + "/" + area_room + "/P.npz")
     #scenes = scenes[:10]
     wargs["scenes"] = scenes
+    wargs["dataset"] = args.out_dataset
 
-    mkdir(args.out_dataset)
+    mkdir(args.out_dataset + "/graphs")
     # print("PID\tProgress\tScene\t|S|")
     process_range(workload=len(scenes), n_cpus=args.n_cpus, process_class=Process, target=process_scenes, args=wargs)
 
@@ -802,7 +805,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--out_dataset",
         type=str,
-        default="s3dis/graphs")
+        default="./s3dis")
     parser.add_argument(
         "--n_cpus",
         type=int,
