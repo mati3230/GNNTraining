@@ -305,7 +305,12 @@ def hists_feature(P, center, bins=10, min_r=-0.5, max_r=0.5):
 
 
 def compute_features_geof(cloud, geof):
-    return np.mean(geof, axis=0)
+    geof_mean = np.mean(geof, axis=0)
+    rgb_mean = np.mean(cloud[:, 3:6], axis=0)
+    feats = np.vstack((geof_mean[:, None], rgb_mean[:, None]))
+    feats = feats.astype(np.float32)
+    feats = feats.reshape(feats.shape[0], )
+    return feats
 
 
 def compute_features(cloud, n_curv=30, k_curv=14, k_far=30, n_normal=30, bins=10, min_r=-0.5, max_r=0.5):
@@ -698,8 +703,8 @@ def process_scenes(id, args, min_i, max_i):
         n_sps, n_edges, sp_idxs, senders, receivers, uni_senders, senders_idxs, senders_counts, geof = superpoint_graph(
             xyz=P[:, :3],
             rgb=P[:, 3:],
-            reg_strength=0.7)
-        #print("created {0} superpoints, have {1} uni senders".format(n_sps, uni_senders.shape[0]))
+            reg_strength=0.3)
+        #print("created {0} superpoints, have {1} uni senders, have {2} senders".format(n_sps, uni_senders.shape[0], senders.shape[0]))
 
         assigned_partition_vec = np.zeros((P.shape[0], ), np.int32)
         for i in range(n_sps):
@@ -720,11 +725,11 @@ def process_scenes(id, args, min_i, max_i):
         hf.create_dataset("partition_vec", data=partition_vec)
         hf.create_dataset("assigned_partition_vec", data=assigned_partition_vec, dtype=np.int32)
         hf.create_dataset("n_sps", data=np.array([n_sps], dtype=np.int32))
-        n_ft = geof.shape[1]
         if n_ft is None:
             sp_idxs_ = sp_idxs[0]
             sp = P[sp_idxs_]
-            features = compute_features(cloud=sp)
+            #features = compute_features(cloud=sp)
+            features = compute_features_geof(cloud=sp, geof=geof)
             n_ft = features.shape[0]
             print("feature vector has size of {0}".format(n_ft))
         all_features = np.zeros((n_sps, n_ft), dtype=np.float32)
