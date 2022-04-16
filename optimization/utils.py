@@ -153,7 +153,9 @@ def load_graph_example(dir, files, idx, p=1, n=-1, deterministic=False, iter_nr=
         mapped_senders = mapped_senders.astype(np.uint32)
         mapped_receivers = mapped_receivers.astype(np.uint32)
         #print(mapped_senders.shape, mapped_receivers.shape, node_features.shape, y.shape)
-
+    #node_features[:, :4] -= 0.5
+    #node_features[:, :4] *= 2
+    #print(node_features[:20])
     return {"nodes": node_features, "senders": mapped_senders,
         "receivers": mapped_receivers, "edges": None, "globals": None}, y, all_inter_idxs
 

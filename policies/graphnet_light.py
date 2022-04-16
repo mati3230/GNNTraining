@@ -36,20 +36,20 @@ class GraphNetLight(BasePolicy):
             observation_size=observation_size)
 
     def action(self, obs, training=False, decision_boundary=0.5, edge_idxs=None):
-        out_g1 = graph_convolution2(
+        out_g2 = graph_convolution2(
             model_fn_node=self.model_fn_node_1,
             model_fn_neigh=self.model_fn_neigh_1,
             activation=tf.nn.relu,
             input_graphs=obs,
             training=training,
             att_model_fn=None)
-        out_g2 = graph_convolution2(
+        """out_g2 = graph_convolution2(
             model_fn_node=self.model_fn_node_2,
             model_fn_neigh=self.model_fn_neigh_2,
             activation=None,
             input_graphs=out_g1,
             training=training,
-            att_model_fn=None)
+            att_model_fn=None)"""
         
         #out_g2_n = tf.concat([out_g2.nodes, out_g1.nodes], axis=-1)
 
@@ -91,29 +91,31 @@ class GraphNetLight(BasePolicy):
             mode="full"):
         dropout = 0
         self.model_fn_node_1 = MLP(
-            layer_dims=[6],
-            activations=[tf.nn.relu],
+            layer_dims=[6, 4],
+            activations=[tf.nn.relu, tf.nn.relu],
             name="mlp_node_1",
             dropout=dropout
             )
+        """
         self.model_fn_node_2 = MLP(
             layer_dims=[3],
             activations=[None],
             name="mlp_node_2",
             dropout=dropout
-            )
+            )"""
         self.model_fn_neigh_1 = MLP(
-            layer_dims=[6],
-            activations=[tf.nn.relu],
+            layer_dims=[6, 4],
+            activations=[tf.nn.relu, tf.nn.relu],
             name="mlp_neigh_1",
             dropout=dropout
             )
+        """
         self.model_fn_neigh_2 = MLP(
             layer_dims=[3],
             activations=[None],
             name="mlp_neigh_2",
             dropout=dropout
-            )
+            )"""
 
     def init_net(
             self,
@@ -130,8 +132,8 @@ class GraphNetLight(BasePolicy):
         vars_ = []
         vars_.extend(self.model_fn_node_1.variables)
         vars_.extend(self.model_fn_neigh_1.variables)
-        vars_.extend(self.model_fn_node_2.variables)
-        vars_.extend(self.model_fn_neigh_2.variables)
+        #vars_.extend(self.model_fn_node_2.variables)
+        #vars_.extend(self.model_fn_neigh_2.variables)
         return vars_
 
     def reset(self):

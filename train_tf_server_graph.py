@@ -20,7 +20,7 @@ def main():
     parser.add_argument("--dataset",type=str,default="s3dis",help="options: scannet, s3dis")
     parser.add_argument("--p_data",type=float,default=1,help="Percentage of the data that should be used")
     parser.add_argument("--gpu",type=bool,default=False,help="Should gpu be used")
-    parser.add_argument("--n_links",type=int,default=128,help="Absolute number of links")
+    parser.add_argument("--n_links",type=int,default=16,help="Absolute number of links")
     args = parser.parse_args()
     if not args.gpu:
         os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
@@ -96,6 +96,7 @@ def main():
     policy.reset()
     print("neural net ready")
     #print(policy.get_vars()[0])
+    #return
 
     model_dir = "./models/" + trainer.params["env_name"] + "/" + trainer.params["model_name"]
 

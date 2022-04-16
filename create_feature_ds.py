@@ -306,7 +306,10 @@ def hists_feature(P, center, bins=10, min_r=-0.5, max_r=0.5):
 
 def compute_features_geof(cloud, geof):
     geof_mean = np.mean(geof, axis=0)
+    geof_mean = 2 * (geof_mean - 0.5)
+
     rgb_mean = np.mean(cloud[:, 3:6], axis=0)
+    
     feats = np.vstack((geof_mean[:, None], rgb_mean[:, None]))
     feats = feats.astype(np.float32)
     feats = feats.reshape(feats.shape[0], )
