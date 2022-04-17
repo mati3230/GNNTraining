@@ -34,14 +34,20 @@ class MLP(tf.keras.layers.Layer):
         self.layers.append(d)
         if(dropout > 0 and dropout < 1):
             self.dropout_layers.append(tf.keras.layers.Dropout(rate=dropout, name=name+"dropout_" + str(len(layer_dims)-1)))
+        self.use_dropout = len(self.dropout_layers) > 0
 
     def build(self, input_shape):
         pass
 
     def call(self, inputs, is_training=True):
-        for i in range(len(self.layers)):
-            inputs = self.layers[i](inputs)
-            inputs = self.dropout_layers[i](inputs, training=is_training)
+        if self.use_dropout:
+            for i in range(len(self.layers)):
+                inputs = self.layers[i](inputs)
+                inputs = self.dropout_layers[i](inputs, training=is_training)
+        else:
+            for i in range(len(self.layers)):
+                inputs = self.layers[i](inputs)
+            
         return inputs
 
 

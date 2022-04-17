@@ -26,6 +26,8 @@ def get_n_batches(dir, files, idx, n=-1):
     uni_senders = np.array(hf["uni_senders"], copy=True)
     senders_idxs = np.array(hf["senders_idxs"], copy=True)
     senders_counts = np.array(hf["senders_counts"], copy=True)
+    #n_sps = np.array(hf["n_sps"], copy=True)
+    #print(n_sps, uni_senders.shape[0])
 
     if senders.shape[0] != y.shape[0]:
         raise Exception("Senders ({0}) have different shape than unions ({1})".format(senders.shape, y.shape))
@@ -58,6 +60,8 @@ def load_graph_example(dir, files, idx, p=1, n=-1, deterministic=False, iter_nr=
         uni_senders = np.array(hf["uni_senders"], copy=True)
         senders_idxs = np.array(hf["senders_idxs"], copy=True)
         senders_counts = np.array(hf["senders_counts"], copy=True)
+        #n_sps = np.array(hf["n_sps"], copy=True)
+        #print(n_sps, uni_senders.shape[0])
         hf.close()
     
     n_edges = y.shape[0]
@@ -107,8 +111,7 @@ def load_graph_example(dir, files, idx, p=1, n=-1, deterministic=False, iter_nr=
         depth = 3
         n_verts = uni_senders.shape[0]
         senders_, receivers_, distances_ = libgeo.geodesic_neighbours(sp_idxs, senders_idxs, senders_counts,
-            receivers, distances, depth, n_verts, True)
-
+            receivers, distances, depth, n_verts, False)
         all_inter_idxs = np.zeros((n_samples, ), dtype=np.int32)
         for i in range(n_samples):
             source = sampled_senders[i]
@@ -116,9 +119,18 @@ def load_graph_example(dir, files, idx, p=1, n=-1, deterministic=False, iter_nr=
             s_idxs = np.where(senders_ == source)[0]
             r_idxs = np.where(receivers_ == target)[0]
             inter_idxs = np.intersect1d(s_idxs, r_idxs)
-            #if inter_idxs.shape[0] != 1:
-            #    raise Exception("Faulty intersection: shape 0 of idxs should be 1 got {0}".format(inter_idxs.shape))
+            if inter_idxs.shape[0] != 1:
+                """print(senders)
+                print(receivers)
+                print(senders_)
+                print(receivers_)"""
+                print(sampled_senders, sampled_receivers)
+                print(sp_idxs)
+                print(source, target)
+                print("extracted {0} edges, soure idxs: {1}, recv idxs {2}".format(senders_.shape[0], s_idxs.shape[0], r_idxs.shape[0]))
+                raise Exception("Faulty intersection: shape 0 of idxs should be 1 got {0}".format(inter_idxs.shape))
             all_inter_idxs[i] = inter_idxs[0].astype(np.int32)
+        #"""
         #print(np.min(all_inter_idxs), np.max(all_inter_idxs), all_inter_idxs.shape, senders_.shape)
         y = y[sample_idxs]
 
@@ -141,7 +153,9 @@ def load_graph_example(dir, files, idx, p=1, n=-1, deterministic=False, iter_nr=
         mapped_senders = mapped_senders.astype(np.uint32)
         mapped_receivers = mapped_receivers.astype(np.uint32)
         #print(mapped_senders.shape, mapped_receivers.shape, node_features.shape, y.shape)
-
+    #node_features[:, :4] -= 0.5
+    #node_features[:, :4] *= 2
+    #print(node_features[:20])
     return {"nodes": node_features, "senders": mapped_senders,
         "receivers": mapped_receivers, "edges": None, "globals": None}, y, all_inter_idxs
 

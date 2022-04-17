@@ -71,7 +71,7 @@ class TFWorkerGraph(TFWorker):
         y_ = tf.cast(y, tf.float32)
         probs = tf.cast(probs, tf.float32)
         #print(probs.shape)
-        f_neg = 1.5
+        f_neg = 1.6
         #f_neg = 1
         pos_bce_loss = -y_ * tf.math.log(tf.where(probs == 0, probs+1e-6, probs)) * (2 - f_neg)
         neg_inp = 1-probs
@@ -220,7 +220,7 @@ def main():
     parser.add_argument("--critical_mem",type=int,default=85,help="Threshold - training will stop if too much memory is used") 
     parser.add_argument("--gpu",type=bool,default=False,help="Should gpu be used")
     parser.add_argument("--verbose",type=bool,default=False,help="Print training progress")
-    parser.add_argument("--n_links",type=int,default=128,help="Absolute number of links")
+    parser.add_argument("--n_links",type=int,default=16,help="Absolute number of links")
     args = parser.parse_args()
     if not args.gpu:
         os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
