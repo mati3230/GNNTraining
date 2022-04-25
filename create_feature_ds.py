@@ -35,7 +35,7 @@ def render_subgraph(P, nodes, sp_idxs, sp_centers, senders, receivers):
         sps.append(P[p_idxs])
         centers.append(sp_centers[node])
     P_ = np.vstack(sps)
-    centers_ np.vstack(centers)
+    centers_ = np.vstack(centers)
     edges = np.hstack((senders[:, None], receivers[:, None]))
     o3d_P = o3d.utility.Vector3dVector(P_[:, :3])
     o3d_C = None
@@ -964,6 +964,7 @@ def process_scenes(id, args, min_i, max_i):
                 print("Array idx out of range - got {0} with max {0}".format(
                     np.max(all_inter_idxs), mapped_senders.shape[0]))
                 continue
+            """
             # e.g. ./s3dis/graphs/Area1_conferenceRoom_1.h5 will be stored as new file
             hf = h5py.File("{0}/graphs/{1}_{2}.h5".format(dataset, area_room_name, j), "w")
             hf.create_dataset("node_features", data=node_features)
@@ -977,6 +978,7 @@ def process_scenes(id, args, min_i, max_i):
             #print(mapped_senders.shape[0], np.max(mapped_senders))
             #print(mapped_senders.shape[0], np.max(mapped_receivers))
             hf.close()
+            """
             #return {"nodes": node_features, "senders": mapped_senders,
             #    "receivers": mapped_receivers, "edges": None, "globals": None}, y, all_inter_idxs
         ######################
