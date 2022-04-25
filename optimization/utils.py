@@ -12,190 +12,23 @@ except ImportError:
     print("Cannot import opencv")
 
 
-def get_n_batches(dir, files, idx, n=-1):
-    file = files[idx]
+def load_graph_batch(i, dir, files):
+    file = files[i]
     file_dir = dir + "/" + file
 
     hf = h5py.File(file_dir, "r")
-    y = np.array(hf["unions"], copy=True)
+
+    node_features = np.array(hf["node_features"], copy=True)
     senders = np.array(hf["senders"], copy=True)
     receivers = np.array(hf["receivers"], copy=True)
-    node_features = np.array(hf["node_features"], copy=True)
-    P = np.array(hf["P"], copy=True)
-    distances = np.array(hf["distances"], copy=True)
-    uni_senders = np.array(hf["uni_senders"], copy=True)
-    senders_idxs = np.array(hf["senders_idxs"], copy=True)
-    senders_counts = np.array(hf["senders_counts"], copy=True)
-    #n_sps = np.array(hf["n_sps"], copy=True)
-    #print(n_sps, uni_senders.shape[0])
-    n_edges = y.shape[0]
-    #print("load {0} gt edges".format(y.shape))
-    n_batches = 1
-    if n >= n_edges or n == -1:
-        return n_batches, y, senders, receivers, node_features, P, distances, uni_senders, senders_idxs, senders_counts
-    n_batches = math.floor(n_edges / n)
-    return n_batches, y, senders, receivers, node_features, P, distances, uni_senders, senders_idxs, senders_counts
+    edge_idxs = np.array(hf["edge_idxs"], copy=True)
+    y = np.array(hf["unions"], copy=True)
 
+    hf.close()
+    input_graphs = {"nodes": node_features, "senders": senders, "receivers": receivers, "edges": None, "globals": None}
+    input_graphs = utils_tf.data_dicts_to_graphs_tuple([input_graphs])
 
-def load_graph_example(dir, files, idx, p=1, n=-1, deterministic=False, iter_nr=0,
-        y=None, senders=None, receivers=None, node_features=None, P=None, distances=None, uni_senders=None,
-        senders_idxs=None, senders_counts=None):
-    if y is None:
-        file = files[idx]
-        file_dir = dir + "/" + file
-
-        hf = h5py.File(file_dir, "r")
-        node_features = np.array(hf["node_features"], copy=True)
-        #node_features = node_features[:, :14]
-        #node_features /= np.linalg.norm(node_features, axis=-1)[:, None]
-        #node_features[:, 6:12] *= -1
-        senders = np.array(hf["senders"], copy=True)
-        receivers = np.array(hf["receivers"], copy=True)
-        y = np.array(hf["unions"], copy=True)
-        P = np.array(hf["P"], copy=True)
-        distances = np.array(hf["distances"], copy=True)
-        uni_senders = np.array(hf["uni_senders"], copy=True)
-        senders_idxs = np.array(hf["senders_idxs"], copy=True)
-        senders_counts = np.array(hf["senders_counts"], copy=True)
-        #n_sps = np.array(hf["n_sps"], copy=True)
-        #print(n_sps, uni_senders.shape[0])
-        hf.close()
-    
-    n_edges = y.shape[0]
-    #half_e = math.floor(senders.shape[0] / 2)
-    #senders = senders[:half_e]
-    #receivers = receivers[:half_e]
-    #y = np.vstack([y[:, None], y[:, None]])
-    #y = y.reshape(y.shape[0], )
-    if p == 1 and n == -1:
-        return {"nodes": node_features, "senders": senders,
-            "receivers": receivers, "edges": None, "globals": None}, y, np.arange(y.shape[0], dtype=np.uint32)
-
-    #n_sps = hf["n_sps"]
-    #if senders.shape[0] != y.shape[0]:
-    #    raise Exception("Senders ({0}) have different shape than unions ({1})".format(senders.shape, y.shape))
-    if p < 1 or n != -1:
-        # random y index
-        idx = int(np.random.randint(low=0, high=y.shape[0], size=1)[0])
-        n_samples = int(n) # if using >1 examples
-        if n == -1: # if using a fraction of the examples
-            n_samples = int(math.floor(p * y.shape[0]))
-        if deterministic:
-            stop_idx = iter_nr+n
-            if stop_idx >= senders.shape[0]:
-                stop_idx = senders.shape[0]
-                n_samples = senders.shape[0] - iter_nr
-            sample_idxs = np.arange(iter_nr, stop_idx)
-        else:
-            sample_idxs = np.random.choice(a=np.arange(n_edges), size=n_samples, replace=False)
-
-        sampled_senders = senders[sample_idxs]
-        sampled_receivers = receivers[sample_idxs]
-        sampled_distances = distances[sample_idxs]
-
-        #uni_senders = np.unique(sampled_senders)
-        #uni_receivers = np.unique(sampled_receivers)
-
-        sp_idxs = np.vstack((sampled_senders[:, None], sampled_receivers[:, None]))
-        sp_idxs = sp_idxs.reshape(sp_idxs.shape[0], )
-        sp_idxs = np.unique(sp_idxs)
-
-        receivers = receivers.astype(np.uint32)
-        senders_idxs = senders_idxs.astype(np.uint32)
-        senders_counts = senders_counts.astype(np.uint32)
-        distances = distances.astype(np.float32)
-        sp_idxs = sp_idxs.astype(np.uint32)
-        depth = 3
-        n_verts = uni_senders.shape[0]
-        senders_, receivers_, distances_ = libgeo.geodesic_neighbours(sp_idxs, senders_idxs, senders_counts,
-            receivers, distances, depth, n_verts, False)
-        all_inter_idxs = np.zeros((n_samples, ), dtype=np.int32)
-        for i in range(n_samples):
-            source = sampled_senders[i]
-            target = sampled_receivers[i]
-            s_idxs = np.where(senders_ == source)[0]
-            r_idxs = np.where(receivers_ == target)[0]
-            inter_idxs = np.intersect1d(s_idxs, r_idxs)
-            if inter_idxs.shape[0] != 1:
-                """print(senders)
-                print(receivers)
-                print(senders_)
-                print(receivers_)"""
-                print(sampled_senders, sampled_receivers)
-                print(sp_idxs)
-                print(source, target)
-                print("extracted {0} edges, soure idxs: {1}, recv idxs {2}".format(senders_.shape[0], s_idxs.shape[0], r_idxs.shape[0]))
-                raise Exception("Faulty intersection: shape 0 of idxs should be 1 got {0}".format(inter_idxs.shape))
-            all_inter_idxs[i] = inter_idxs[0].astype(np.int32)
-        #"""
-        #print(np.min(all_inter_idxs), np.max(all_inter_idxs), all_inter_idxs.shape, senders_.shape)
-        y = y[sample_idxs]
-
-        all_nodes = np.vstack((senders_[:, None], receivers_[:, None]))
-        all_nodes = all_nodes.reshape(all_nodes.shape[0], )
-        all_nodes = np.unique(all_nodes)
-
-        tmp_node_features = np.zeros((all_nodes.shape[0], node_features.shape[-1]))
-        mapping = 0
-        mapped_senders = np.array(senders_, copy=True)
-        mapped_receivers = np.array(receivers_, copy=True)
-        for i in range(all_nodes.shape[0]):
-            node_idx = all_nodes[i]
-            mapped_senders[senders_ == node_idx] = mapping
-            mapped_receivers[receivers_ == node_idx] = mapping
-            tmp_node_features[i] = node_features[node_idx]
-            mapping += 1
-        node_features = tmp_node_features
-        node_features = node_features.astype(np.float32)
-        mapped_senders = mapped_senders.astype(np.uint32)
-        mapped_receivers = mapped_receivers.astype(np.uint32)
-        #print(mapped_senders.shape, mapped_receivers.shape, node_features.shape, y.shape)
-    #node_features[:, :4] -= 0.5
-    #node_features[:, :4] *= 2
-    #print(node_features[:20])
-    return {"nodes": node_features, "senders": mapped_senders,
-        "receivers": mapped_receivers, "edges": None, "globals": None}, y, all_inter_idxs
-
-def load_graph_batch(i, train_idxs, dir, files, batch_size=1, p=1, deterministic=False, iter_nr=0,
-        y=None, senders=None, receivers=None, node_features=None, P=None, distances=None, uni_senders=None,
-        senders_idxs=None, senders_counts=None):
-    j = i * batch_size
-    idxs = train_idxs[j:j+batch_size]
-
-    data_dicts = []
-    ys = []
-    edge_idxs = []
-    for k in range(idxs.shape[0]):
-        idx = idxs[k]
-        if p > 1:
-            data_dict, y, idxs = load_graph_example(dir=dir, files=files, idx=idx, n=p, deterministic=deterministic, iter_nr=iter_nr,
-                y=y, senders=senders, receivers=receivers, node_features=node_features, P=P, distances=distances,
-                uni_senders=uni_senders, senders_idxs=senders_idxs, senders_counts=senders_counts)
-        elif p == 1:
-            data_dict, y, idxs = load_graph_example(dir=dir, files=files, idx=idx, deterministic=deterministic, iter_nr=iter_nr,
-                y=y, senders=senders, receivers=receivers, node_features=node_features, P=P, distances=distances,
-                uni_senders=uni_senders, senders_idxs=senders_idxs, senders_counts=senders_counts)
-        else:
-            data_dict, y, idxs = load_graph_example(dir=dir, files=files, idx=idx, p=p, deterministic=deterministic, iter_nr=iter_nr,
-                y=y, senders=senders, receivers=receivers, node_features=node_features, P=P, distances=distances,
-                uni_senders=uni_senders, senders_idxs=senders_idxs, senders_counts=senders_counts)
-        #print("load graph example with {0} links and {1} as batch size".format(y.shape[0], batch_size))
-        #data_dict, y = load_graph_example(dir=dir, files=files, idx=idx, p=p)
-        data_dicts.append(data_dict)
-        # print(y)
-        ys.append(y.reshape(y.shape[0], 1))
-        edge_idxs.append(idxs)
-    try:
-        input_graphs = utils_tf.data_dicts_to_graphs_tuple(data_dicts)
-    except:
-        print("len", len(data_dicts), idxs.shape[0], train_idxs, j, batch_size)
-        raise
-    if batch_size == 1:
-        return input_graphs, ys[0], edge_idxs[0]
-    ys = np.vstack(ys)
-    ys = ys.reshape(ys.shape[0], )
-    edge_idxs = np.vstack(edge_idxs)
-    return input_graphs, ys, edge_idxs
+    return input_graphs, y, edge_idxs
 
 
 def split_examples(train_idxs, train_n, client_id, n_clients):

@@ -20,12 +20,9 @@ def main():
     parser.add_argument("--dataset",type=str,default="s3dis",help="options: scannet, s3dis")
     parser.add_argument("--p_data",type=float,default=1,help="Percentage of the data that should be used")
     parser.add_argument("--gpu",type=bool,default=False,help="Should gpu be used")
-    parser.add_argument("--n_links",type=int,default=16,help="Absolute number of links")
     args = parser.parse_args()
     if not args.gpu:
         os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-    if args.n_links == 0:
-        raise Exception("Too less links")
 
     def compose_env_args(params):
             if "data_provider_path" in params:
@@ -81,12 +78,8 @@ def main():
     print("load example")
     files_dir = "./" + args.dataset + "/graphs"
     files = os.listdir(files_dir)
-    if args.n_links > 1:
-        dd, y, _ = load_graph_example(dir=files_dir, files=files, idx=0, n=args.n_links)
-    elif args.n_links == 1:
-        dd, y, _ = load_graph_example(dir=files_dir, files=files, idx=0)
-    else:
-        dd, y, _ = load_graph_example(dir=files_dir, files=files, idx=0, p=args.n_links)
+
+    dd, y, _ = load_graph_batch(i=0, dir=files_dir, files=files)
     print("prepare example with {0} elements".format(y.shape[0]))
     #return
     input_graphs = utils_tf.data_dicts_to_graphs_tuple([dd])

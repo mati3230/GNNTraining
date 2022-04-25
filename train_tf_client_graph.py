@@ -8,7 +8,7 @@ import os
 import math
 
 from optimization.train_tf_client import TFWorker, TFClient
-from optimization.utils import load_graph_example, load_graph_batch, get_n_batches
+from optimization.utils import load_graph_batch, get_n_batches
 from optimization.tf_utils import contrastive_loss, euclidean_distance
 
 
@@ -29,9 +29,7 @@ class TFWorkerGraph(TFWorker):
             train_idxs,
             test_idxs,
             start_with_work=True,
-            verbose=False,
-            n_links=1):
-        self.n_links = n_links
+            verbose=False):
         super().__init__(
             conn=conn,
             id=id,
@@ -130,37 +128,12 @@ class TFWorkerGraph(TFWorker):
     def get_n_t_batches(self):
         return self.test_idxs.shape[0]
 
-    def test_prediction(self, i):
-        n_iter, y, senders, receivers, node_features, P, distances, uni_senders, senders_idxs, senders_counts = get_n_batches(
-            dir=self.dataset_dir, files=self.data_files, idx=i, n=self.n_links)
-        #print("have to do {0} iterations".format(n_iter))
-        n_uni_edges = y.shape[0]
-        all_action = np.zeros((n_uni_edges, ), dtype=np.bool)
-        for j in range(n_iter + 1):
-            iter_nr = j*self.n_links
-            batch = load_graph_batch(i=i, train_idxs=self.test_idxs, dir=self.dataset_dir,
-                files=self.data_files, batch_size=1, p=self.n_links, deterministic=True, iter_nr=iter_nr,
-                y=y, senders=senders, receivers=receivers, node_features=node_features, P=P, distances=distances,
-                uni_senders=uni_senders, senders_idxs=senders_idxs, senders_counts=senders_counts)
-            action = self.prediction(batch=batch)
-            action = action.numpy()
-            action = np.squeeze(action)
-            act_links = batch[1].shape[0]
-            #print(n_uni_edges, iter_nr, iter_nr + act_links, j, n_iter, senders.shape[0])
-            all_action[iter_nr:iter_nr+act_links] = action
-        return y, all_action
-
     def load_example(self, dir, files, idx):
         #print("load_example with {0} links".format(self.n_links))
-        if self.n_links > 1:
-            return load_graph_example(dir=files_dir, files=files, idx=idx, n=self.n_links)
-        elif self.n_links == 1:
-            return load_graph_example(dir=files_dir, files=files, idx=idx)
-        else:
-            return load_graph_example(dir=files_dir, files=files, idx=idx, p=self.n_links)
+        return load_graph_batch(i=idx, dir=dir, files=files)
 
     def load_batch(self, i, train_idxs, dir, files, batch_size):
-        return load_graph_batch(i=i, train_idxs=train_idxs, dir=dir, files=files, batch_size=batch_size, p=self.n_links)
+        return load_graph_batch(i=i, dir=dir, files=files)
 
 
 class TFClientGraph(TFClient):
@@ -175,10 +148,8 @@ class TFClientGraph(TFClient):
             data_dir="./tmp",
             dataset_dir="./s3dis/graphs",
             buffer_size=4096,
-            verbose=False,
-            n_links=128):
+            verbose=False):
         self.verbose = verbose
-        self.n_links = n_links
         super().__init__(
             server_ip=server_ip,
             server_port=server_port,
@@ -205,8 +176,7 @@ class TFClientGraph(TFClient):
             p_data=self.p_data,
             train_idxs=train_idxs,
             test_idxs=test_idxs,
-            verbose=self.verbose,
-            n_links=self.n_links)
+            verbose=self.verbose)
 
 
 def main():
@@ -220,12 +190,9 @@ def main():
     parser.add_argument("--critical_mem",type=int,default=85,help="Threshold - training will stop if too much memory is used") 
     parser.add_argument("--gpu",type=bool,default=False,help="Should gpu be used")
     parser.add_argument("--verbose",type=bool,default=False,help="Print training progress")
-    parser.add_argument("--n_links",type=int,default=16,help="Absolute number of links")
     args = parser.parse_args()
     if not args.gpu:
         os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-    if args.n_links == 0:
-        raise Exception("Too less links")
 
     TFClientGraph(
         server_ip=args.ip,
@@ -235,8 +202,7 @@ def main():
         buffer_size=args.buffer_size,
         shared_value=Value("i", True),
         critical_mem=args.critical_mem,
-        verbose=args.verbose,
-        n_links=args.n_links)
+        verbose=args.verbose)
 
 
 if __name__ == "__main__":
