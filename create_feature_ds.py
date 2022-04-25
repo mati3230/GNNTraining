@@ -3,6 +3,7 @@ from multiprocessing import Process
 import argparse
 import h5py
 import os
+import math
 
 import matplotlib.pyplot as plt
 
@@ -629,10 +630,10 @@ def superpoint_graph(xyz, rgb, k_nn_adj=10, k_nn_geof=45, lambda_edge_weight=1, 
 
     in_component = np.array(in_component)
 
-    sp_centers = np.zeros((n_sps, 3), dtype=np.float32)
+    sp_centers = np.zeros((n_com, 3), dtype=np.float32)
     for i in range(n_com):
         idxs = components[i]
-        sp_centers[i] = np.mean(P[idxs, :3], axis=0)
+        sp_centers[i] = np.mean(xyz[idxs], axis=0)
 
     assigned_partition_vec = np.zeros((xyz.shape[0], ), dtype=np.uint32)
     for i in range(n_com):
@@ -644,10 +645,11 @@ def superpoint_graph(xyz, rgb, k_nn_adj=10, k_nn_geof=45, lambda_edge_weight=1, 
     senders, receivers = libgeo.components_graph(assigned_partition_vec, source, target)
 
     # make each edge bidirectional
+    """
     tmp_senders = np.array(senders, copy=True)
     senders = np.hstack((senders[None, :], receivers[None, :]))
     receivers = np.hstack((receivers[None, :], tmp_senders[None, :]))
-
+    """
     # unique: filter multiple occurance of the same edges
     edges = np.vstack((senders, receivers))
     uni_edges = np.unique(edges, axis=1)
@@ -669,11 +671,12 @@ def superpoint_graph(xyz, rgb, k_nn_adj=10, k_nn_geof=45, lambda_edge_weight=1, 
             if i in uni_senders:
                 continue
             single_nodes.append(i)
-        print("Have to connect {0} nodes".format(len(single_nodes)))
+        #print("Have to connect {0} nodes".format(len(single_nodes)))
         single_nodes = np.array(single_nodes, dtype=np.uint32)
+        #single_nodes = single_nodes.reshape(1, -1)
         # determine the nearest neighbours of the single nodes
         nn = NearestNeighbors(n_neighbors=n_repair, algorithm="kd_tree").fit(sp_centers)
-        single_dists, single_neigh = nn.kneighbors(single_nodes)
+        single_dists, single_neigh = nn.kneighbors(sp_centers[single_nodes])
 
         offset = n_repair - 1
         n_add = single_nodes.shape[0] * offset
@@ -687,10 +690,12 @@ def superpoint_graph(xyz, rgb, k_nn_adj=10, k_nn_geof=45, lambda_edge_weight=1, 
             n_receivers[start:stop] = single_neigh[i, 1:]
 
         # make new edges bidirectional
+        """
         tmp_n_senders = np.array(n_senders, copy=True)
         n_senders = np.hstack((n_senders[None, :], n_receivers[None, :]))
         n_receivers = np.hstack((n_receivers[None, :], tmp_n_senders[None, :]))
-
+        """
+        
         # add new edges to the old ones
         senders = np.vstack((senders[:, None], n_senders[:, None]))
         receivers = np.vstack((receivers[:, None], n_receivers[:, None]))
@@ -710,7 +715,7 @@ def superpoint_graph(xyz, rgb, k_nn_adj=10, k_nn_geof=45, lambda_edge_weight=1, 
         raise Exception("Different number of superpoints and unique senders ({0}, {1})".format(n_com, uni_senders.shape[0]))
     ######################################
     #print("{0} edges filtered, {1} unique edges".format(n_filtered, len(uni_edges)))
-    return n_com, senders.shape[0], components, senders, receivers, uni_senders, senders_idxs, senders_counts, geof, sp_centers, sp_centers
+    return n_com, senders.shape[0], components, senders, receivers, uni_senders, senders_idxs, senders_counts, geof, sp_centers
 
 
 def process_scenes(id, args, min_i, max_i):
@@ -826,26 +831,30 @@ def process_scenes(id, args, min_i, max_i):
         if n_false_edges <= n_true_edges:
             n_samples = n_false_edges * 2
             true_edge_idxs = true_edge_idxs[:n_false_edges]
+            #print("Throw {0}/{1} ({2:.3f}) positive edges away".format(n_true_edges - n_false_edges, n_true_edges, (n_true_edges - n_false_edges)/n_true_edges))
         else:
             n_samples = n_true_edges * 2
             false_edge_idxs = false_edge_idxs[:n_true_edges]
+            #print("Throw {0}/{1} ({2:.3f}) negative edges away".format(n_false_edges - n_true_edges, n_false_edges, (n_false_edges - n_true_edges)/n_false_edges))
         if false_edge_idxs.shape[0] != true_edge_idxs.shape[0]:
             raise Exception("True and false idxs have different shapes ({0}, {1})".format(false_edge_idxs.shape[0], true_edge_idxs[0]))
-        batch_size = 16
+        batch_size = 128
         if n_samples <= batch_size:
-            raise Exception("do not have enough samples, got: {0}, want: {1}".format(n_samples, batch_size))
+            #print("do not have enough samples, got: {0}, want: {1}".format(n_samples, batch_size))
+            continue
         n_batches = math.floor(n_samples / batch_size)
+        #print("Calculate {0} batches".format(n_batches))
         #sample_size = batch_size / 2
         sample_idxs = np.arange(false_edge_idxs.shape[0], dtype=np.uint32)
         np.random.shuffle(sample_idxs)
-        b_half = batch_size / 2
+        b_half = math.floor(batch_size / 2)
         for j in range(n_batches):
             start = j * b_half
             stop = start + b_half
             s_idxs = sample_idxs[start:stop]
             s_false_edge_idxs = false_edge_idxs[s_idxs]
             s_true_edge_idxs = true_edge_idxs[s_idxs]
-            edge_idxs = np.vstack(s_false_edge_idxs[:, None], s_true_edge_idxs[:, None])
+            edge_idxs = np.vstack((s_false_edge_idxs[:, None], s_true_edge_idxs[:, None]))
             edge_idxs = edge_idxs.reshape(edge_idxs.shape[0], )
 
             sampled_unions = unions[edge_idxs]
@@ -870,7 +879,14 @@ def process_scenes(id, args, min_i, max_i):
             n_verts = uni_senders.shape[0]
             senders_, receivers_, distances_ = libgeo.geodesic_neighbours(sp_idxs, senders_idxs, senders_counts,
                 receivers, distances, depth, n_verts, False)
+
+            edges = np.vstack((senders_, receivers_))
+            uni_edges = np.unique(edges, axis=1)
+            senders_ = uni_edges[0, :]
+            receivers_ = uni_edges[1, :]
+
             all_inter_idxs = np.zeros((batch_size, ), dtype=np.int32)
+            #print(senders_.shape[0])
             # we search the original edges in the subgraph
             for k in range(batch_size):
                 source = sampled_senders[k]
@@ -884,16 +900,15 @@ def process_scenes(id, args, min_i, max_i):
                     print(receivers)
                     print(senders_)
                     print(receivers_)
-                    """
                     print(sampled_senders, sampled_receivers)
                     print(sp_idxs)
                     print(source, target)
+                    """
                     print("extracted {0} edges, soure idxs: {1}, recv idxs {2}".format(senders_.shape[0], s_idxs.shape[0], r_idxs.shape[0]))
                     raise Exception("Faulty intersection: shape 0 of idxs should be 1 got {0}".format(inter_idxs.shape))
                 all_inter_idxs[k] = inter_idxs[0].astype(np.int32)
             #"""
             #print(np.min(all_inter_idxs), np.max(all_inter_idxs), all_inter_idxs.shape, senders_.shape)
-            y = y[edge_idxs]
 
             all_nodes = np.vstack((senders_[:, None], receivers_[:, None]))
             all_nodes = all_nodes.reshape(all_nodes.shape[0], )
@@ -903,17 +918,25 @@ def process_scenes(id, args, min_i, max_i):
             mapping = 0
             mapped_senders = np.array(senders_, copy=True)
             mapped_receivers = np.array(receivers_, copy=True)
-            for i in range(all_nodes.shape[0]):
-                node_idx = all_nodes[i]
+            for k in range(all_nodes.shape[0]):
+                node_idx = all_nodes[k]
                 mapped_senders[senders_ == node_idx] = mapping
                 mapped_receivers[receivers_ == node_idx] = mapping
-                tmp_node_features[i] = all_features[node_idx]
+                tmp_node_features[k] = all_features[node_idx]
                 mapping += 1
             node_features = tmp_node_features
             node_features = node_features.astype(np.float32)
             mapped_senders = mapped_senders.astype(np.uint32)
             mapped_receivers = mapped_receivers.astype(np.uint32)
 
+            if np.max(mapped_senders) >= node_features.shape[0] or np.max(mapped_receivers) >= node_features.shape[0]:
+                print("Array idx out of range - got {0}, {1} with max {0}".format(
+                    node_features.shape[0], np.max(mapped_senders), np.max(mapped_receivers)))
+                continue
+            if np.max(all_inter_idxs) >= mapped_senders.shape[0]:
+                print("Array idx out of range - got {0} with max {0}".format(
+                    np.max(all_inter_idxs), mapped_senders.shape[0]))
+                continue
             # e.g. ./s3dis/graphs/Area1_conferenceRoom_1.h5 will be stored as new file
             hf = h5py.File("{0}/graphs/{1}_{2}.h5".format(dataset, area_room_name, j), "w")
             hf.create_dataset("node_features", data=node_features)
@@ -921,6 +944,11 @@ def process_scenes(id, args, min_i, max_i):
             hf.create_dataset("receivers", data=mapped_receivers)
             hf.create_dataset("unions", data=sampled_unions)
             hf.create_dataset("edge_idxs", data=all_inter_idxs)
+            #print(sampled_unions)
+            #print(np.max(all_inter_idxs))
+            #print(node_features.shape[0])
+            #print(mapped_senders.shape[0], np.max(mapped_senders))
+            #print(mapped_senders.shape[0], np.max(mapped_receivers))
             hf.close()
             #return {"nodes": node_features, "senders": mapped_senders,
             #    "receivers": mapped_receivers, "edges": None, "globals": None}, y, all_inter_idxs

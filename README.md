@@ -24,4 +24,5 @@ The trained models will be stored in the *./models* directory and the tensorboar
 
 # TODOs
 
+* plot subgraphs
 * Compare Edge Convolution with Node Convolution? 
