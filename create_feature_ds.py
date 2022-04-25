@@ -22,6 +22,33 @@ from optimization.utils import distance_sort
 from optimization.tf_utils import np_fast_dot
 
 
+def render_subgraph(P, nodes, sp_idxs, sp_centers, senders, receivers):
+    sps = []
+    q_nodes = []
+    centers = []
+    for i in range(nodes.shape[0]):
+        node = nodes[i]
+        if node in q_nodes:
+            continue
+        q_nodes.append(node)
+        p_idxs = sp_idxs[node]
+        sps.append(P[p_idxs])
+        centers.append(sp_centers[node])
+    P_ = np.vstack(sps)
+    centers_ np.vstack(centers)
+    edges = np.hstack((senders[:, None], receivers[:, None]))
+    o3d_P = o3d.utility.Vector3dVector(P_[:, :3])
+    o3d_C = None
+    if P.shape[1] > 3:
+        o3d_C = o3d.utility.Vector3dVector(P_[:, 3:6])
+    o3d_centers = o3d.utility.Vector3dVector(centers_)
+    o3d_edges = o3d.utility.Vector2iVector(edges)
+    line_set = o3d.geometry.LineSet(points=o3d_centers, lines=o3d_edges)
+    cloud = o3d.geometry.PointCloud(points=o3d_P)
+    if o3d_C is not None:
+        cloud.colors = o3d_C
+    o3d.visualization.draw_geometries([cloud, line_set])
+
 def plot_samples2D(P, i, center):
 
     m = np.ones((P.shape[0], ), dtype=np.bool)
