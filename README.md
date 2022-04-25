@@ -26,4 +26,5 @@ The trained models will be stored in the *./models* directory and the tensorboar
 
 * Connect single edges (i.e. nodes with no edges) to the remaining graph
 * Store links as dataset?
-* Sample yes and no decisions equally 
+* Sample yes and no decisions equally
+* Compare Edge Convolution with Node Convolution? 

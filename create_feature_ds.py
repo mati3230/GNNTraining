@@ -779,6 +779,9 @@ def process_scenes(id, args, min_i, max_i):
         hf.create_dataset("sp_centers", data=sp_centers)
         hf.create_dataset("distances", data=distances)
 
+        if senders.shape[0] != unions.shape[0]:
+            raise Exception("Senders ({0}) have different shape than unions ({1})".format(senders.shape, unions.shape))
+
         #print("unions: {0}".format(np.mean(unions)))
         hf.close()
 
