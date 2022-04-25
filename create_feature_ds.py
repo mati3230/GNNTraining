@@ -4,6 +4,7 @@ import argparse
 import h5py
 import os
 import math
+import open3d as o3d
 
 import matplotlib.pyplot as plt
 
@@ -22,10 +23,12 @@ from optimization.utils import distance_sort
 from optimization.tf_utils import np_fast_dot
 
 
-def render_graph(P, nodes, sp_idxs, sp_centers, senders, receivers):
+def render_graph(P, nodes, sp_idxs, sp_centers=None, senders=None, receivers=None):
     sps = []
     q_nodes = []
     centers = []
+    if P.shape[1] > 3:
+        P[:, 3:6] /= 255
     for i in range(nodes.shape[0]):
         node = nodes[i]
         if node in q_nodes:
@@ -33,21 +36,26 @@ def render_graph(P, nodes, sp_idxs, sp_centers, senders, receivers):
         q_nodes.append(node)
         p_idxs = sp_idxs[node]
         sps.append(P[p_idxs])
-        centers.append(sp_centers[node])
     P_ = np.vstack(sps)
-    centers_ = np.vstack(centers)
-    edges = np.hstack((senders[:, None], receivers[:, None]))
+
     o3d_P = o3d.utility.Vector3dVector(P_[:, :3])
     o3d_C = None
     if P.shape[1] > 3:
         o3d_C = o3d.utility.Vector3dVector(P_[:, 3:6])
-    o3d_centers = o3d.utility.Vector3dVector(centers_)
-    o3d_edges = o3d.utility.Vector2iVector(edges)
-    line_set = o3d.geometry.LineSet(points=o3d_centers, lines=o3d_edges)
+
     cloud = o3d.geometry.PointCloud(points=o3d_P)
     if o3d_C is not None:
         cloud.colors = o3d_C
-    o3d.visualization.draw_geometries([cloud, line_set])
+    visu_list = [cloud]
+
+    if senders is not None:
+        o3d_centers = o3d.utility.Vector3dVector(sp_centers)
+        edges = np.hstack((senders[:, None], receivers[:, None]))
+        o3d_edges = o3d.utility.Vector2iVector(edges)
+        line_set = o3d.geometry.LineSet(points=o3d_centers, lines=o3d_edges)
+        visu_list.append(line_set)
+    
+    o3d.visualization.draw_geometries(visu_list)
 
 def plot_samples2D(P, i, center):
 
@@ -742,7 +750,141 @@ def superpoint_graph(xyz, rgb, k_nn_adj=10, k_nn_geof=45, lambda_edge_weight=1, 
         raise Exception("Different number of superpoints and unique senders ({0}, {1})".format(n_com, uni_senders.shape[0]))
     ######################################
     #print("{0} edges filtered, {1} unique edges".format(n_filtered, len(uni_edges)))
+    
+    #render_graph(P=np.array(np.hstack((xyz, rgb)), copy=True), nodes=np.arange(n_com), sp_idxs=components, sp_centers=sp_centers, senders=senders, receivers=receivers)
+
     return n_com, senders.shape[0], components, senders, receivers, uni_senders, senders_idxs, senders_counts, geof, sp_centers
+
+
+def get_neigh(v, dv, edges, direct_neigh_idxs, n_edges, distances):
+    """Query the direct neighbours of the vertex v. The distance dv to the vertex v
+    will be added to the distances of the direct neigbours. 
+
+    Parameters
+    ----------
+    v : int
+        A vertex index
+    dv : float
+        Distances to the vertex v
+    edges : np.ndarray
+        Edges in the graph in a source target format
+    direct_neigh_idxs : np.ndarray
+        Array with the direct neighbours of the vertices in the graph.
+    n_edges : np.ndarray
+        Number of adjacent vertices per vertex
+    distances : np.ndarray
+        Array that containes the direct neigbours of a vertex
+
+    Returns
+    -------
+    neighs : np.ndarray
+        Direct neighbours (adjacent vertices) of the vertex v
+    dists : np.ndarray
+        The distances to the direct neighbourhood.
+    """
+    start = direct_neigh_idxs[v]
+    stop = start + n_edges[v]
+    neighs = edges[1, start:stop]
+    dists = distances[start:stop] + dv
+    return neighs, dists
+
+
+def search_bfs_depth(vi, edges, distances, direct_neigh_idxs, n_edges, depth):
+    """Search k nearest neigbours of a vertex with index vi with a BFS.
+
+    Parameters
+    ----------
+    vi : int
+        A vertex index
+    edges : np.ndarray
+        The edges of the mesh stored as 2xN array where N is the number of edges.
+        The first row characterizes
+    distances : np.ndarray
+        distances of the edges in the graph.
+    direct_neigh_idxs : np.ndarray
+        Array that containes the direct neigbours of a vertex
+    n_edges : np.ndarray
+        Number of adjacent vertices per vertex
+    k : int
+        Number of neighbours that should be found
+
+    Returns
+    -------
+    fedges : np.ndarray
+        An array of size 3xk.
+        The first two rows are the neighbourhood connections in a source,
+        target format. The last row stores the distances between the
+        nearest neighbours.
+
+    """
+    # output structure (source, target, distance)
+    out_source = []
+    out_target = []
+    out_distances = []
+
+    # a list of tuples where each tuple consist of a path and its length
+    #shortest_paths = []
+    paths_to_check = [(vi, 0)]
+    # all paths that we observe
+    #paths = []
+    # does the shortest paths contain k neighbours?, i.e. len(sortest_paths) == k
+    #k_reached = False
+    # dictionary containing all target vertices with the path length as value
+    all_p_lens = {vi:(vi, 0)}
+    # outer while loop
+    for j in range(depth):
+        #print("iter")
+        # ---------BFS--------------
+        tmp_paths_to_check = {}
+        # we empty all paths to check at each iteration and fill them up at the end of the outer while loop
+        while len(paths_to_check) > 0:
+            target, path_distance = paths_to_check.pop(0)
+            # if path is too long, we do not need to consider it anymore
+            #if path_distance >= bound:
+            #    continue
+            # get the adjacent vertices of the target (last) vertex of this path 
+            ns, ds = get_neigh(
+                v=target,
+                dv=path_distance,
+                edges=edges,
+                direct_neigh_idxs=direct_neigh_idxs,
+                n_edges=n_edges,
+                distances=distances)
+            for z in range(ns.shape[0]):
+                vn = int(ns[z])
+                ds_z = ds[z]
+                """
+                ensure that you always save the shortest path to a target
+                and that this shortest path is considered for future iterations
+                """
+                if vn in all_p_lens:
+                    p_d = all_p_lens[vn][1]
+                    if ds_z >= p_d:
+                        continue
+                all_p_lens[vn] = (target, ds_z)
+                # new path that to be considered in the next iteration
+                #tmp_paths_to_check.append((vn, ds_z))
+                tmp_paths_to_check[vn] = ds_z
+        # end inner while loop
+        # sort the paths according to the distances in ascending order
+        #all_p_lens = dict(sorted(all_p_lens.items(), key=lambda x: x[1], reverse=False))
+        
+        # throw paths away that have a larger distance than the bound
+        """for j in range(len(tmp_paths_to_check)):
+            target, path_distance = tmp_paths_to_check[j]
+            if path_distance >= bound:
+                continue
+            paths_to_check.append((target, path_distance))"""
+        for vert, dist in tmp_paths_to_check.items():
+            paths_to_check.append((vert, dist))
+
+    # end outer while loop
+    # finally, return thek nearest targets and distances
+    for key, value in all_p_lens.items():
+        out_source.append(value[0])
+        out_target.append(key)
+        out_distances.append(value[1])
+    return np.array(out_source, dtype=np.uint32), np.array(out_target, dtype=np.uint32), np.array(out_distances, dtype=np.float32)
 
 
 def process_scenes(id, args, min_i, max_i):
@@ -762,6 +904,7 @@ def process_scenes(id, args, min_i, max_i):
         Maximum scene index.
     """
     #print(id, max_i, min_i, max_i - min_i)
+    np.random.seed(42)
     scenes = args["scenes"]
     dataset = args["dataset"]
     n_ft = None
@@ -774,7 +917,7 @@ def process_scenes(id, args, min_i, max_i):
 
         data = np.load(scene)
 
-        P = data["P"]
+        P_orig = data["P"]
         #print("point cloud has {0} points".format(P.shape[0]))
         
         partition_vec = data["partition_vec"]
@@ -786,12 +929,12 @@ def process_scenes(id, args, min_i, max_i):
         
         # n_com, n_sedg, components, senders, receivers, uni_senders, senders_idxs, senders_counts
         n_sps, n_edges, sp_idxs, senders, receivers, uni_senders, senders_idxs, senders_counts, geof, sp_centers = superpoint_graph(
-            xyz=P[:, :3],
-            rgb=P[:, 3:],
-            reg_strength=0.3)
+            xyz=P_orig[:, :3],
+            rgb=P_orig[:, 3:],
+            reg_strength=0.07)
         #print("created {0} superpoints, have {1} uni senders, have {2} senders".format(n_sps, uni_senders.shape[0], senders.shape[0]))
 
-        assigned_partition_vec = np.zeros((P.shape[0], ), np.int32)
+        assigned_partition_vec = np.zeros((P_orig.shape[0], ), np.int32)
         for j in range(n_sps):
             idxs = np.unique(sp_idxs[j])
             sp_idxs[j] = idxs
@@ -804,7 +947,7 @@ def process_scenes(id, args, min_i, max_i):
 
         #print("Superpoint graph has {0} nodes and {1} edges".format(n_sps, n_edges))
         #print("Compute features for every superpoint")
-        P, center = feature_point_cloud(P=P)
+        P, center = feature_point_cloud(P=np.array(P_orig, copy=True))
         """
         hf.create_dataset("P", data=P)
         hf.create_dataset("partition_vec", data=partition_vec)
@@ -865,7 +1008,7 @@ def process_scenes(id, args, min_i, max_i):
             #print("Throw {0}/{1} ({2:.3f}) negative edges away".format(n_false_edges - n_true_edges, n_false_edges, (n_false_edges - n_true_edges)/n_false_edges))
         if false_edge_idxs.shape[0] != true_edge_idxs.shape[0]:
             raise Exception("True and false idxs have different shapes ({0}, {1})".format(false_edge_idxs.shape[0], true_edge_idxs[0]))
-        batch_size = 128
+        batch_size = 4
         if n_samples <= batch_size:
             #print("do not have enough samples, got: {0}, want: {1}".format(n_samples, batch_size))
             continue
@@ -875,6 +1018,13 @@ def process_scenes(id, args, min_i, max_i):
         sample_idxs = np.arange(false_edge_idxs.shape[0], dtype=np.uint32)
         np.random.shuffle(sample_idxs)
         b_half = math.floor(batch_size / 2)
+
+        receivers = receivers.astype(np.uint32)
+        senders_idxs = senders_idxs.astype(np.uint32)
+        senders_counts = senders_counts.astype(np.uint32)
+        distances = distances.astype(np.float32)
+        all_edges = np.vstack((senders[None, :], receivers[None, :]))
+
         for j in range(n_batches):
             start = j * b_half
             stop = start + b_half
@@ -888,29 +1038,47 @@ def process_scenes(id, args, min_i, max_i):
         
             sampled_senders = senders[edge_idxs]
             sampled_receivers = receivers[edge_idxs]
-            sampled_distances = distances[edge_idxs]
-
+            sampled_distances = distances[edge_idxs]    
+            
             #uni_senders = np.unique(sampled_senders)
             #uni_receivers = np.unique(sampled_receivers)
 
-            sp_idxs = np.vstack((sampled_senders[:, None], sampled_receivers[:, None]))
-            sp_idxs = sp_idxs.reshape(sp_idxs.shape[0], )
-            sp_idxs = np.unique(sp_idxs)
+            sampled_sp_idxs = np.vstack((sampled_senders[:, None], sampled_receivers[:, None]))
+            sampled_sp_idxs = sampled_sp_idxs.reshape(sampled_sp_idxs.shape[0], )
+            sampled_sp_idxs = np.unique(sampled_sp_idxs)
+            #render_graph(P=np.array(P_orig, copy=True), nodes=sampled_sp_idxs, sp_idxs=sp_idxs)
 
-            receivers = receivers.astype(np.uint32)
-            senders_idxs = senders_idxs.astype(np.uint32)
-            senders_counts = senders_counts.astype(np.uint32)
-            distances = distances.astype(np.float32)
-            sp_idxs = sp_idxs.astype(np.uint32)
+            sampled_sp_idxs = sampled_sp_idxs.astype(np.uint32)
             depth = 3
             n_verts = uni_senders.shape[0]
-            senders_, receivers_, distances_ = libgeo.geodesic_neighbours(sp_idxs, senders_idxs, senders_counts,
-                receivers, distances, depth, n_verts, False)
+            #print(np.max(senders), np.max(receivers), sp_idxs.shape[0])
+            #senders_, receivers_, distances_ = libgeo.geodesic_neighbours(sampled_sp_idxs, senders_idxs, senders_counts,
+            #    receivers, distances, depth, n_verts, False)
+
+            senders_ = np.zeros((0, 1), dtype=np.uint32)
+            receivers_ = np.zeros((0, 1), dtype=np.uint32)
+            for k in range(sampled_sp_idxs.shape[0]):
+                fsenders, freceivers, _ = search_bfs_depth(vi=sampled_sp_idxs[k], edges=all_edges, distances=distances, direct_neigh_idxs=senders_idxs, n_edges=senders_counts, depth=depth)
+                senders_ = np.vstack((senders_, fsenders[:, None]))
+                receivers_ = np.vstack((receivers_, freceivers[:, None]))
+            senders_ = senders_.reshape(senders_.shape[0])
+            receivers_ = receivers_.reshape(receivers_.shape[0])
+            #print(senders_, receivers_)
+            #print(senders_.shape, receivers_.shape)
+            #print(np.max(senders_), np.max(receivers_), sp_idxs.shape[0])
 
             edges = np.vstack((senders_, receivers_))
             uni_edges = np.unique(edges, axis=1)
             senders_ = uni_edges[0, :]
             receivers_ = uni_edges[1, :]
+
+            all_nodes = np.vstack((senders_[:, None], receivers_[:, None]))
+            all_nodes = all_nodes.reshape(all_nodes.shape[0], )
+            all_nodes = np.unique(all_nodes)
+            #all_nodes = np.array(all_nodes)
+            #print(all_nodes.shape)
+            
+            #render_graph(P=np.array(P_orig, copy=True), nodes=all_nodes, sp_idxs=sp_idxs, sp_centers=sp_centers, senders=senders_, receivers=receivers_)
 
             all_inter_idxs = np.zeros((batch_size, ), dtype=np.int32)
             #print(senders_.shape[0])
@@ -937,9 +1105,6 @@ def process_scenes(id, args, min_i, max_i):
             #"""
             #print(np.min(all_inter_idxs), np.max(all_inter_idxs), all_inter_idxs.shape, senders_.shape)
 
-            all_nodes = np.vstack((senders_[:, None], receivers_[:, None]))
-            all_nodes = all_nodes.reshape(all_nodes.shape[0], )
-            all_nodes = np.unique(all_nodes)
 
             tmp_node_features = np.zeros((all_nodes.shape[0], all_features.shape[-1]))
             mapping = 0
@@ -955,7 +1120,8 @@ def process_scenes(id, args, min_i, max_i):
             node_features = node_features.astype(np.float32)
             mapped_senders = mapped_senders.astype(np.uint32)
             mapped_receivers = mapped_receivers.astype(np.uint32)
-            render_graph(P=P, nodes=all_nodes, sp_idxs=sp_idxs, sp_centers=sp_centers, senders=mapped_senders, receivers=mapped_receivers)
+
+            #render_graph(P=np.array(P_orig, copy=True), nodes=all_nodes, sp_idxs=sp_idxs, sp_centers=sp_centers, senders=senders_, receivers=receivers_)
 
             if np.max(mapped_senders) >= node_features.shape[0] or np.max(mapped_receivers) >= node_features.shape[0]:
                 print("Array idx out of range - got {0}, {1} with max {0}".format(
@@ -965,7 +1131,7 @@ def process_scenes(id, args, min_i, max_i):
                 print("Array idx out of range - got {0} with max {0}".format(
                     np.max(all_inter_idxs), mapped_senders.shape[0]))
                 continue
-            """
+            #"""
             # e.g. ./s3dis/graphs/Area1_conferenceRoom_1.h5 will be stored as new file
             
 
@@ -981,7 +1147,7 @@ def process_scenes(id, args, min_i, max_i):
             #print(mapped_senders.shape[0], np.max(mapped_senders))
             #print(mapped_senders.shape[0], np.max(mapped_receivers))
             hf.close()
-            """
+            #"""
             #return {"nodes": node_features, "senders": mapped_senders,
             #    "receivers": mapped_receivers, "edges": None, "globals": None}, y, all_inter_idxs
         ######################
