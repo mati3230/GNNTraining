@@ -22,7 +22,7 @@ from optimization.utils import distance_sort
 from optimization.tf_utils import np_fast_dot
 
 
-def render_subgraph(P, nodes, sp_idxs, sp_centers, senders, receivers):
+def render_graph(P, nodes, sp_idxs, sp_centers, senders, receivers):
     sps = []
     q_nodes = []
     centers = []
@@ -955,6 +955,7 @@ def process_scenes(id, args, min_i, max_i):
             node_features = node_features.astype(np.float32)
             mapped_senders = mapped_senders.astype(np.uint32)
             mapped_receivers = mapped_receivers.astype(np.uint32)
+            render_graph(P=P, nodes=all_nodes, sp_idxs=sp_idxs, sp_centers=sp_centers, senders=mapped_senders, receivers=mapped_receivers)
 
             if np.max(mapped_senders) >= node_features.shape[0] or np.max(mapped_receivers) >= node_features.shape[0]:
                 print("Array idx out of range - got {0}, {1} with max {0}".format(
@@ -966,6 +967,8 @@ def process_scenes(id, args, min_i, max_i):
                 continue
             """
             # e.g. ./s3dis/graphs/Area1_conferenceRoom_1.h5 will be stored as new file
+            
+
             hf = h5py.File("{0}/graphs/{1}_{2}.h5".format(dataset, area_room_name, j), "w")
             hf.create_dataset("node_features", data=node_features)
             hf.create_dataset("senders", data=mapped_senders)
