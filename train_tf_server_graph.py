@@ -4,7 +4,7 @@ import os
 from graph_nets import utils_tf
 
 from optimization.train_tf_server import TFServer
-from optimization.utils import load_graph_example
+from optimization.utils import load_graph_batch
 from optimization.base_trainer import BaseTrainer
 from optimization.utils import get_type, save_config
 
@@ -79,10 +79,10 @@ def main():
     files_dir = "./" + args.dataset + "/graphs"
     files = os.listdir(files_dir)
 
-    dd, y, _ = load_graph_batch(i=0, dir=files_dir, files=files)
+    input_graphs, y, _ = load_graph_batch(i=0, dir=files_dir, files=files)
     print("prepare example with {0} elements".format(y.shape[0]))
     #return
-    input_graphs = utils_tf.data_dicts_to_graphs_tuple([dd])
+    #input_graphs = utils_tf.data_dicts_to_graphs_tuple([dd])
     print("prediction")
     policy.action(obs=input_graphs, training=False)
     print("reset")

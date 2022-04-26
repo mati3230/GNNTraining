@@ -340,16 +340,20 @@ def hists_feature(P, center, bins=10, min_r=-0.5, max_r=0.5):
     return hists
 
 
-def compute_features_geof(cloud, geof):
+def compute_features_geof(cloud, geof, mean_cloud, std_cloud, mean_geof, std_geof):
     geof_mean = np.mean(geof, axis=0)
-    geof_mean = 2 * (geof_mean - 0.5)
+    #geof_mean = 2 * (geof_mean - 0.5)
+    geof_mean = (geof_mean - mean_geof) / std_geof
 
     rgb_mean = np.mean(cloud[:, 3:6], axis=0)
-    
+    rgb_mean = (rgb_mean - mean_cloud[3:6]) / std_cloud[3:6]
+        
+    #print(geof_mean, rgb_mean)
+
     feats = np.vstack((geof_mean[:, None], rgb_mean[:, None]))
     feats = feats.astype(np.float32)
     feats = feats.reshape(feats.shape[0], )
-    return feats
+    return feats, np.any(np.isnan(geof_mean)) or np.any(np.isnan(rgb_mean))
 
 
 def compute_features(cloud, n_curv=30, k_curv=14, k_far=30, n_normal=30, bins=10, min_r=-0.5, max_r=0.5):
@@ -552,8 +556,8 @@ def feature_point_cloud(P, k_curv=14):
     max_P = np.max(np.abs(P[:, :3]))
     P[:, :3] /= (max_P + 1e-6)
     P[:, 3:] /= 255
-    P[:, 3:] -= 0.5
-    P[:, 3:] *= 2
+    #P[:, 3:] -= 0.5
+    #P[:, 3:] *= 2
     P = np.hstack((P, curv[:, None], normals))
     return P, center
 
@@ -617,7 +621,8 @@ def superpoint_graph(xyz, rgb, k_nn_adj=10, k_nn_geof=45, lambda_edge_weight=1, 
     graph_nn, target_fea = compute_graph_nn_2(xyz, k_nn_adj, k_nn_geof)
     #---compute geometric features-------
     #print("Compute geof")
-    geof = libply_c.compute_geof(xyz, target_fea, k_nn_geof, False).astype('float32')
+    geof_all = libply_c.compute_all_geof(xyz, target_fea, k_nn_geof, False).astype('float32')
+    geof = np.array(geof_all[:, :4], copy=True)
     del target_fea
 
     senders = graph_nn["source"]
@@ -753,7 +758,7 @@ def superpoint_graph(xyz, rgb, k_nn_adj=10, k_nn_geof=45, lambda_edge_weight=1, 
     
     #render_graph(P=np.array(np.hstack((xyz, rgb)), copy=True), nodes=np.arange(n_com), sp_idxs=components, sp_centers=sp_centers, senders=senders, receivers=receivers)
 
-    return n_com, senders.shape[0], components, senders, receivers, uni_senders, senders_idxs, senders_counts, geof, sp_centers
+    return n_com, senders.shape[0], components, senders, receivers, uni_senders, senders_idxs, senders_counts, geof_all, sp_centers
 
 
 def get_neigh(v, dv, edges, direct_neigh_idxs, n_edges, distances):
@@ -947,30 +952,47 @@ def process_scenes(id, args, min_i, max_i):
 
         #print("Superpoint graph has {0} nodes and {1} edges".format(n_sps, n_edges))
         #print("Compute features for every superpoint")
-        P, center = feature_point_cloud(P=np.array(P_orig, copy=True))
+        #P, center = feature_point_cloud(P=np.array(P_orig, copy=True))
+        P = P_orig
+        P[:, 3:6] /= 255
         """
         hf.create_dataset("P", data=P)
         hf.create_dataset("partition_vec", data=partition_vec)
         hf.create_dataset("assigned_partition_vec", data=assigned_partition_vec, dtype=np.int32)
         hf.create_dataset("n_sps", data=np.array([n_sps], dtype=np.int32))
         """
+        mean_P = np.mean(P, axis=0)
+        std_P = np.std(P, axis=0)
+        mean_geof = np.mean(geof, axis=0)
+        std_geof = np.std(geof, axis=0)
         if n_ft is None:
             sp_idxs_ = sp_idxs[0]
             sp = P[sp_idxs_]
+            sp_geof = geof[sp_idxs_]
+
             #features = compute_features(cloud=sp)
-            features = compute_features_geof(cloud=sp, geof=geof)
+            features, isnan = compute_features_geof(cloud=sp, geof=sp_geof,
+                mean_cloud=mean_P, std_cloud=std_P, mean_geof=mean_geof, std_geof=std_geof)
             n_ft = features.shape[0]
             print("feature vector has size of {0}".format(n_ft))
         all_features = np.zeros((n_sps, n_ft), dtype=np.float32)
         sps_sizes = []
+        isnan = False
         for k in range(n_sps):
             sp_idxs_ = sp_idxs[k]
             #hf.create_dataset(str(k), data=sp_idxs_)
             sp = P[sp_idxs_]
+            sp_geof = geof[sp_idxs_]
             sps_sizes.append(sp_idxs_.shape[0])
             #features = compute_features(cloud=sp)
-            features = compute_features_geof(cloud=sp, geof=geof)
+            features, isnan = compute_features_geof(cloud=sp, geof=sp_geof,
+                mean_cloud=mean_P, std_cloud=std_P, mean_geof=mean_geof, std_geof=std_geof)
+            if isnan:
+                break
             all_features[k] = features
+        if isnan:
+            print("Skip scene due to nan exception")
+            continue
         mean_sps = np.mean(sps_sizes)
         sp_sizes.append(mean_sps)
         std_sps = np.std(sps_sizes)
@@ -1008,7 +1030,7 @@ def process_scenes(id, args, min_i, max_i):
             #print("Throw {0}/{1} ({2:.3f}) negative edges away".format(n_false_edges - n_true_edges, n_false_edges, (n_false_edges - n_true_edges)/n_false_edges))
         if false_edge_idxs.shape[0] != true_edge_idxs.shape[0]:
             raise Exception("True and false idxs have different shapes ({0}, {1})".format(false_edge_idxs.shape[0], true_edge_idxs[0]))
-        batch_size = 4
+        batch_size = 16
         if n_samples <= batch_size:
             #print("do not have enough samples, got: {0}, want: {1}".format(n_samples, batch_size))
             continue
@@ -1121,7 +1143,7 @@ def process_scenes(id, args, min_i, max_i):
             mapped_senders = mapped_senders.astype(np.uint32)
             mapped_receivers = mapped_receivers.astype(np.uint32)
 
-            #render_graph(P=np.array(P_orig, copy=True), nodes=all_nodes, sp_idxs=sp_idxs, sp_centers=sp_centers, senders=senders_, receivers=receivers_)
+            #render_graph(P=np.array(P_orig, copy=True), nodes=np.arange(all_nodes.shape[0]), sp_idxs=sp_idxs[all_nodes], sp_centers=sp_centers[all_nodes], senders=mapped_senders, receivers=mapped_receivers)
 
             if np.max(mapped_senders) >= node_features.shape[0] or np.max(mapped_receivers) >= node_features.shape[0]:
                 print("Array idx out of range - got {0}, {1} with max {0}".format(
