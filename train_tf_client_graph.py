@@ -123,7 +123,8 @@ class TFWorkerGraph(TFWorker):
             }
 
     def on_init_end(self):
-        self.bce = BinaryCrossentropy(from_logits=False)
+        #self.bce = BinaryCrossentropy(from_logits=False)
+        return
 
     def get_n_t_batches(self):
         return self.test_idxs.shape[0]

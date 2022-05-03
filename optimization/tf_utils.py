@@ -334,30 +334,23 @@ def graph_convolution2(model_fn_node, model_fn_neigh, activation, input_graphs, 
     return output_graphs
 
 
-if __name__ == "__main__":
-    # Test of sync functionality
-    conv_train = k.layers.Conv2D(
-        filters=16,
-        kernel_size=(3, 3),
-        strides=(2, 2),
-        activation="relu",
-        name="train",
-        trainable=True)
-    conv_test = k.layers.Conv2D(
-        filters=16,
-        kernel_size=(3, 3),
-        strides=(2, 2),
-        activation="relu",
-        name="test",
-        trainable=False)
-    sample_img = np.random.randn(1, 30, 30, 3)
-    conv_train(sample_img)
-    conv_test(sample_img)
-    i = 0
-    print(
-        conv_train.trainable_weights[i],
-        conv_test.non_trainable_weights[i])
-    conv_test.non_trainable_weights[i].assign(conv_train.trainable_weights[i])
-    print(
-        conv_train.trainable_weights[i],
-        conv_test.non_trainable_weights[i])
+def graph_convolution3(model_fn_node, activation, input_graphs, training, att_model_fn=None):
+    # Send the node features to the edges that are being sent by that node. 
+    nodes_at_sender_edges = gn.blocks.broadcast_sender_nodes_to_edges(input_graphs)
+    if att_model_fn is not None:
+        att = attention2(input_graphs=input_graphs, model_fn=att_model_fn, training=training)
+        nodes_at_sender_edges *= att[:, None]
+
+    temporary_graph_sent = input_graphs.replace(edges=nodes_at_sender_edges)
+
+    # Average the all of the edges received by every node.
+    nodes_with_aggregated_edges = gn.blocks.ReceivedEdgesToNodesAggregator(tf.math.unsorted_segment_mean)(temporary_graph_sent)
+
+    z = model_fn_node(nodes_with_aggregated_edges, is_training=training)
+    if activation is not None:
+        z = activation(z)
+
+
+    output_graphs = input_graphs.replace(nodes=z)
+
+    return output_graphs
