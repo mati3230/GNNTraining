@@ -892,7 +892,7 @@ def search_bfs_depth(vi, edges, distances, direct_neigh_idxs, n_edges, depth):
     return np.array(out_source, dtype=np.uint32), np.array(out_target, dtype=np.uint32), np.array(out_distances, dtype=np.float32)
 
 
-def subgraph(all_features, senders, receivers, unions, senders_idxs, senders_counts, distances, dataset, area_room_name, batch_size=16, depth=3):
+def subgraph(all_features, senders, receivers, unions, uni_senders, senders_idxs, senders_counts, distances, dataset, area_room_name, batch_size=16, depth=3):
     n_unions = unions.shape[0]
     false_edge_idxs = np.where(unions == False)[0]
     n_false_edges = false_edge_idxs.shape[0]
@@ -1204,14 +1204,14 @@ def process_scenes(id, args, min_i, max_i):
         mean_sps = np.mean(sps_sizes)
         sp_sizes.append(mean_sps)
 
-        
-        #""" uncomment to disable line graph calculation
         if use_line_graph:
+            #print("n edges: {0}, n nodes: {1}".format(senders.shape[0], all_features.shape[0]))
             unions, all_features, senders, receivers, uni_senders, senders_idxs, senders_counts, pos = line_graph(
                 alpha=alpha, all_features=all_features, senders=senders, receivers=receivers,
                 uni_senders=uni_senders ,senders_idxs=senders_idxs, senders_counts=senders_counts,
                 pos=sp_centers)
-
+            #print("n edges: {0}, n nodes: {1}".format(senders.shape[0], all_features.shape[0]))
+            
             distances = np.sqrt(np.sum((pos[senders] - pos[receivers])**2, axis=1))
         else: 
             unions = np.zeros((senders.shape[0], ), dtype=np.bool)
@@ -1222,13 +1222,12 @@ def process_scenes(id, args, min_i, max_i):
                 unions[k] = union
 
             distances = np.sqrt(np.sum((sp_centers[senders] - sp_centers[receivers])**2, axis=1))
-        #"""
         
         if batch_size > 0:
             # store subgraphs
             subgraph(
                 all_features=all_features, senders=senders, receivers=receivers, unions=unions,
-                senders_idxs=senders_idxs, senders_counts=senders_counts, distances=distances,
+                uni_senders=uni_senders, senders_idxs=senders_idxs, senders_counts=senders_counts, distances=distances,
                 dataset=dataset, area_room_name=area_room_name, batch_size=batch_size, depth=depth)
         else:
             store_graph(dataset=dataset, area_room_name=area_room_name, j=0, node_features=all_features,
@@ -1300,8 +1299,8 @@ def test_line_graph():
     print(receivers)
 
 if __name__ == "__main__":
-    test_line_graph()
-    """
+    #test_line_graph()
+    #"""
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--dataset",
@@ -1333,4 +1332,4 @@ if __name__ == "__main__":
         help="Activate calculation of the line graph")
     args = parser.parse_args()
     main(args=args)
-    """
+    #"""
