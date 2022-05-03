@@ -3,7 +3,7 @@ import numpy as np
 from .mlp import MLP
 
 from optimization.base_policy import BasePolicy
-from optimization.tf_utils import fast_dot, graph_convolution2
+from optimization.tf_utils import fast_dot, graph_convolution3
 
 
 class GraphNetLight(BasePolicy):

@@ -1445,10 +1445,13 @@ def process_scenes(id, args, min_i, max_i):
         if batch_size > 0:
             # store subgraphs
             if use_line_graph:
-                subgraph_nodes(
-                    all_features=all_features, senders=senders, receivers=receivers, unions=unions,
-                    uni_senders=uni_senders, senders_idxs=senders_idxs, senders_counts=senders_counts, distances=distances,
-                    dataset=dataset, area_room_name=area_room_name, batch_size=batch_size, depth=depth)
+                try:
+                    subgraph_nodes(
+                        all_features=all_features, senders=senders, receivers=receivers, unions=unions,
+                        uni_senders=uni_senders, senders_idxs=senders_idxs, senders_counts=senders_counts, distances=distances,
+                        dataset=dataset, area_room_name=area_room_name, batch_size=batch_size, depth=depth)
+                except Exception:
+                    continue
             else:
                 subgraph(
                     all_features=all_features, senders=senders, receivers=receivers, unions=unions,
