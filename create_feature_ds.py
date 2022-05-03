@@ -1224,7 +1224,7 @@ def subgraph_nodes(all_features, senders, receivers, unions, uni_senders, sender
             continue
         #"""
         store_graph(dataset=dataset, area_room_name=area_room_name, j=j, node_features=node_features,
-            senders=mapped_senders, receivers=mapped_receivers, unions=sampled_unions, node_idxs=all_inter_idxs)
+            senders=mapped_senders, receivers=mapped_receivers, unions=sampled_unions, edge_idxs=all_inter_idxs)
         #"""
 
 
