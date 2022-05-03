@@ -37,6 +37,9 @@ environment/segmentation.o
 environment/segmentation_ext.so
 environment/segmentation_ext.pyd
 environment/segmentation_ext.cpython-36m-x86_64-linux-gnu.so
+libcp.so
+libgeo.so
+libply_c.so
 
 # windows
 *.dll
