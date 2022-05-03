@@ -967,6 +967,7 @@ def subgraph(all_features, senders, receivers, unions, uni_senders, senders_idxs
         all_inter_idxs = np.zeros((batch_size, ), dtype=np.int32)
         #print(senders_.shape[0])
         # we search the original edges in the subgraph
+        ok = True
         for k in range(batch_size):
             source = sampled_senders[k]
             target = sampled_receivers[k]
@@ -975,9 +976,12 @@ def subgraph(all_features, senders, receivers, unions, uni_senders, senders_idxs
             inter_idxs = np.intersect1d(s_idxs, r_idxs)
             if inter_idxs.shape[0] != 1:
                 print("extracted {0} edges, soure idxs: {1}, recv idxs {2}".format(senders_.shape[0], s_idxs.shape[0], r_idxs.shape[0]))
-                raise Exception("Faulty intersection: shape 0 of idxs should be 1 got {0}".format(inter_idxs.shape))
+                print("Faulty intersection: shape 0 of idxs should be 1 got {0}".format(inter_idxs.shape))
+                ok = False
+                break
             all_inter_idxs[k] = inter_idxs[0].astype(np.int32)
-
+        if not ok:
+            continue
         tmp_node_features = np.zeros((all_nodes.shape[0], all_features.shape[-1]))
         mapping = 0
         mapped_senders = np.array(senders_, copy=True)
