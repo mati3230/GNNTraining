@@ -1143,7 +1143,7 @@ def line_graph(alpha, all_features, senders, receivers, uni_senders ,senders_idx
                 pos_node = (pos_sender + pos_receiver) / 2
                 n_pos.append(pos_node)
                 edges_sets.append(edge_set)
-                node_features.append( (all_features[sender] - all_features[receiver])**2 )
+                node_features.append( np.abs(all_features[sender] - all_features[receiver]) )
                 union = alpha[sender] == alpha[receiver]
                 unions.append(union)
                 node_idx += 1
@@ -1174,7 +1174,7 @@ def line_graph(alpha, all_features, senders, receivers, uni_senders ,senders_idx
                     pos_node_ = (pos_sender + pos_receiver_) / 2
                     n_pos.append(pos_node_)
                     edges_sets.append(edge_set_)
-                    node_features.append( (all_features[sender] - all_features[receiver_])**2 )
+                    node_features.append( np.abs(all_features[sender] - all_features[receiver_]) )
                     union = alpha[sender] == alpha[receiver_]
                     unions.append(union)
                     node_idx += 1
@@ -1203,6 +1203,7 @@ def line_graph(alpha, all_features, senders, receivers, uni_senders ,senders_idx
     n_uni_senders, n_senders_idxs, n_senders_counts = np.unique(n_senders, return_index=True, return_counts=True)
 
     node_features = np.vstack(node_features)
+    #print(node_features[:5, :])
     unions = np.array(unions, dtype=np.bool)
     n_pos = np.vstack(n_pos)
 

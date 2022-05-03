@@ -1,6 +1,6 @@
 {
     "token": "1093023247:AAEIuTcXtjBmFH_bjWLpmMvPXT7xhEIO_b4",
-    "learning_rate": 1e-2,
+    "learning_rate": 1e-4,
     "n_cpus": 1,
     "n_batches": 1,
     "batch_size": 1,
