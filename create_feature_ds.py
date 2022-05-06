@@ -345,15 +345,16 @@ def compute_features_geof(cloud, geof, mean_cloud, std_cloud, mean_geof, std_geo
     #geof_mean = 2 * (geof_mean - 0.5)
     geof_mean = (geof_mean - mean_geof) / std_geof
 
-    rgb_mean = np.mean(cloud[:, 3:6], axis=0)
-    rgb_mean = (rgb_mean - mean_cloud[3:6]) / std_cloud[3:6]
+    #rgb_mean = np.mean(cloud[:, 3:6], axis=0)
+    #rgb_mean = (rgb_mean - mean_cloud[3:6]) / std_cloud[3:6]
         
     #print(geof_mean, rgb_mean)
 
-    feats = np.vstack((geof_mean[:, None], rgb_mean[:, None]))
+    #feats = np.vstack((geof_mean[:, None], rgb_mean[:, None]))
+    feats = geof_mean
     feats = feats.astype(np.float32)
     feats = feats.reshape(feats.shape[0], )
-    return feats, np.any(np.isnan(geof_mean)) or np.any(np.isnan(rgb_mean))
+    return feats, np.any(np.isnan(geof_mean))# or np.any(np.isnan(rgb_mean))
 
 
 def compute_features(cloud, n_curv=30, k_curv=14, k_far=30, n_normal=30, bins=10, min_r=-0.5, max_r=0.5):
