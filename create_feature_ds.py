@@ -23,19 +23,23 @@ from optimization.utils import distance_sort
 from optimization.tf_utils import np_fast_dot
 
 
-def render_graph(P, nodes, sp_idxs, sp_centers=None, senders=None, receivers=None):
+def render_graph(P, nodes, sp_idxs, sp_centers=None, senders=None, receivers=None, sampled_nodes=None):
     sps = []
     q_nodes = []
     centers = []
-    if P.shape[1] > 3:
-        P[:, 3:6] /= 255
+    #if P.shape[1] > 3:
+    #    P[:, 3:6] /= 255
     for i in range(nodes.shape[0]):
         node = nodes[i]
         if node in q_nodes:
             continue
         q_nodes.append(node)
         p_idxs = sp_idxs[node]
-        sps.append(P[p_idxs])
+        sp = P[p_idxs]
+        if sampled_nodes is not None:
+            if node in sampled_nodes:
+                sp[:, 3:6] = np.array([1, 0, 0])
+        sps.append(sp)
     P_ = np.vstack(sps)
 
     o3d_P = o3d.utility.Vector3dVector(P_[:, :3])
@@ -893,7 +897,8 @@ def search_bfs_depth(vi, edges, distances, direct_neigh_idxs, n_edges, depth):
     return np.array(out_source, dtype=np.uint32), np.array(out_target, dtype=np.uint32), np.array(out_distances, dtype=np.float32)
 
 
-def subgraph(all_features, senders, receivers, unions, uni_senders, senders_idxs, senders_counts, distances, dataset, area_room_name, batch_size=16, depth=3):
+def subgraph(all_features, senders, receivers, unions, uni_senders, senders_idxs, senders_counts,
+        distances, dataset, area_room_name, batch_size=16, depth=3, P_orig=None, sp_centers=None, sp_idxs=None):
     n_unions = unions.shape[0]
     false_edge_idxs = np.where(unions == False)[0]
     n_false_edges = false_edge_idxs.shape[0]
@@ -919,6 +924,8 @@ def subgraph(all_features, senders, receivers, unions, uni_senders, senders_idxs
     senders_counts = senders_counts.astype(np.uint32)
     distances = distances.astype(np.float32)
     all_edges = np.vstack((senders[None, :], receivers[None, :]))
+    #render_graph(P=np.array(P_orig, copy=True), nodes=np.arange(len(sp_idxs), dtype=np.uint32), sp_idxs=sp_idxs,
+    #    sp_centers=sp_centers, senders=senders, receivers=receivers)
 
     for j in range(n_batches):
         start = j * b_half
@@ -997,9 +1004,20 @@ def subgraph(all_features, senders, receivers, unions, uni_senders, senders_idxs
         node_features = node_features.astype(np.float32)
         mapped_senders = mapped_senders.astype(np.uint32)
         mapped_receivers = mapped_receivers.astype(np.uint32)
-
-        #render_graph(P=np.array(P_orig, copy=True), nodes=np.arange(all_nodes.shape[0]), sp_idxs=sp_idxs[all_nodes], sp_centers=sp_centers[all_nodes], senders=mapped_senders, receivers=mapped_receivers)
-
+        """
+        sampled_nodes_visu = []
+        for k in range(all_inter_idxs.shape[0]):
+            e_idx = all_inter_idxs[k]
+            node_i = mapped_senders[e_idx]
+            node_j = mapped_receivers[e_idx]
+            if node_i not in sampled_nodes_visu:
+                sampled_nodes_visu.append(node_i)
+            if node_j not in sampled_nodes_visu:
+                sampled_nodes_visu.append(node_j)
+        render_graph(P=np.array(P_orig, copy=True), nodes=np.arange(all_nodes.shape[0]),
+            sp_idxs=sp_idxs[all_nodes], sp_centers=sp_centers[all_nodes], senders=mapped_senders, 
+            receivers=mapped_receivers, sampled_nodes=sampled_nodes_visu)
+        """
         if np.max(mapped_senders) >= node_features.shape[0] or np.max(mapped_receivers) >= node_features.shape[0]:
             print("Array idx out of range - got {0}, {1} with max {0}".format(
                 node_features.shape[0], np.max(mapped_senders), np.max(mapped_receivers)))
@@ -1336,7 +1354,9 @@ def process_scenes(id, args, min_i, max_i):
                 subgraph(
                     all_features=all_features, senders=senders, receivers=receivers, unions=unions,
                     uni_senders=uni_senders, senders_idxs=senders_idxs, senders_counts=senders_counts, distances=distances,
-                    dataset=dataset, area_room_name=area_room_name, batch_size=batch_size, depth=depth)
+                    dataset=dataset, area_room_name=area_room_name, batch_size=batch_size, depth=depth,
+                    #P_orig=P_orig, sp_centers=sp_centers, sp_idxs=sp_idxs # uncomment for rendering
+                    )
         else:
             store_graph(dataset=dataset, area_room_name=area_room_name, j=0, node_features=all_features,
                 senders=senders, receivers=receivers, unions=unions, edge_idxs=np.arange(senders.shape[0], dtype=np.uint32))
