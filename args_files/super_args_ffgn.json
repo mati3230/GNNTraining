@@ -8,7 +8,7 @@
     "seed": 16,
     "K_epochs": 1,
     "test_interval": 1000,
-    "observation_size": "[(11,)]",
+    "observation_size": "[(8,)]",
     "n_actions": 2,
     "n_ft_outpt": 8,
     "env_name": "SuperpointUnionEnv",

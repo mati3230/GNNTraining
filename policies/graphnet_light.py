@@ -94,7 +94,7 @@ class GraphNetLight(BasePolicy):
             mode="full"):
         dropout = 0
         self.model_fn_node_1 = MLP(
-            layer_dims=[11, 8],
+            layer_dims=[8, 8],
             activations=[tf.nn.relu, tf.nn.relu, None],
             name="mlp_node_1",
             dropout=dropout
@@ -108,7 +108,7 @@ class GraphNetLight(BasePolicy):
             )
         #"""
         self.model_fn_neigh_1 = MLP(
-            layer_dims=[11, 8],
+            layer_dims=[8, 8],
             activations=[tf.nn.relu, tf.nn.relu, None],
             name="mlp_neigh_1",
             dropout=dropout

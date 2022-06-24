@@ -1275,6 +1275,7 @@ def process_scenes(id, args, min_i, max_i):
             rgb=P_orig[:, 3:],
             reg_strength=0.07,
             make_bidirect=True)
+        geof = geof[:, :-3]
 
         assigned_partition_vec = np.zeros((P_orig.shape[0], ), np.int32)
         for j in range(n_sps):
