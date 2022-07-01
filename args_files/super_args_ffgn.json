@@ -13,7 +13,7 @@
     "n_ft_outpt": 8,
     "env_name": "SuperpointUnionEnv",
     "model_name": "FFGN",
-    "policy_path": "policies.graphnet_light",
+    "policy_path": "policies.graphnet_head",
     "policy_type": "GraphNetLight",
     "env_path": "environment.superpoint_union_env",
     "env_type": "SuperpointUnionEnv",

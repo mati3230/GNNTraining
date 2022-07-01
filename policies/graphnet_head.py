@@ -36,7 +36,7 @@ class GraphNetLight(BasePolicy):
             observation_size=observation_size)
 
     def action(self, obs, training=False, decision_boundary=0.5, edge_idxs=None):
-        out_g1 = graph_convolution2(
+        out_g2 = graph_convolution2(
             model_fn_node=self.model_fn_node_1,
             model_fn_neigh=self.model_fn_neigh_1,
             activation=None,
@@ -44,7 +44,7 @@ class GraphNetLight(BasePolicy):
             training=training,
             att_model_fn=None)
         
-        #"""
+        """
         out_g2 = graph_convolution2(
             model_fn_node=self.model_fn_node_2,
             model_fn_neigh=self.model_fn_neigh_2,
@@ -52,7 +52,7 @@ class GraphNetLight(BasePolicy):
             input_graphs=out_g1,
             training=training,
             att_model_fn=None)
-        #"""
+        """
         
         #out_g2_n = tf.concat([out_g2.nodes, out_g1.nodes], axis=-1)
 
@@ -79,7 +79,7 @@ class GraphNetLight(BasePolicy):
         pi_action = {
             "action": action,
             "probs": d,
-            "dot": dot
+            "dot": 0
             }
         return pi_action
 
