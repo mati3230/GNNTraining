@@ -113,13 +113,22 @@ class GraphNetLight(BasePolicy):
             name="mlp_node_2",
             dropout=dropout
             )
-
+        #"""
         self.mlp_head = MLP(
             layer_dims=[1],
             activations=[tf.nn.sigmoid],
             name="mlp_head",
             dropout=dropout
             )
+        #"""
+        """
+        self.mlp_head = MLP(
+            layer_dims=[8, 4, 1],
+            activations=[tf.nn.relu, tf.nn.relu, tf.nn.sigmoid],
+            name="mlp_head",
+            dropout=dropout
+            )
+        """
 
     def init_net(
             self,
