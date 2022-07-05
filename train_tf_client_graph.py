@@ -61,19 +61,21 @@ class TFWorkerGraph(TFWorker):
 
     def compute_losses(self, batch):
         graphs, y, edge_idxs = batch
+        #print("train")
         pi_action = self.model.action(obs=graphs, training=True, edge_idxs=edge_idxs)
         probs = pi_action["probs"]
+        #print("done")
         probs_loss = tf.reduce_mean(probs)
         #bce_loss = self.bce(y, probs)
 
         y_ = tf.cast(y, tf.float32)
         probs = tf.cast(probs, tf.float32)
         #print(probs.shape)
-        f_neg = 1
         #f_neg = 1
-        pos_bce_loss = -y_ * tf.math.log(tf.where(probs == 0, probs+1e-6, probs)) * (2 - f_neg)
+        #f_neg = 1
+        pos_bce_loss = -y_ * tf.math.log(tf.where(probs == 0, probs+1e-6, probs))# * (2 - f_neg)
         neg_inp = 1-probs
-        neg_bce_loss =  -(1-y_) * tf.math.log(tf.where(neg_inp == 0, neg_inp+1e-6, neg_inp)) * f_neg 
+        neg_bce_loss =  -(1-y_) * tf.math.log(tf.where(neg_inp == 0, neg_inp+1e-6, neg_inp))# * f_neg 
         bce_loss = pos_bce_loss + neg_bce_loss
         bce_loss = tf.reduce_mean(bce_loss)
         pos_bce_loss = tf.reduce_mean(pos_bce_loss)

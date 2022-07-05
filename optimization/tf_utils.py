@@ -320,14 +320,13 @@ def graph_convolution2(model_fn_node, model_fn_neigh, activation, input_graphs, 
     temporary_graph_sent = input_graphs.replace(edges=nodes_at_sender_edges)
 
     # Average the all of the edges received by every node.
-    nodes_with_aggregated_edges = gn.blocks.ReceivedEdgesToNodesAggregator(tf.math.unsorted_segment_sum)(temporary_graph_sent)
+    nodes_with_aggregated_edges = gn.blocks.ReceivedEdgesToNodesAggregator(tf.math.unsorted_segment_mean)(temporary_graph_sent)
 
     z_neigh = model_fn_neigh(nodes_with_aggregated_edges, is_training=training)
     z_node = model_fn_node(input_graphs.nodes, is_training=training)
     updated_nodes = z_node + z_neigh
     if activation is not None:
         updated_nodes = activation(updated_nodes)
-
 
     output_graphs = input_graphs.replace(nodes=updated_nodes)
 
