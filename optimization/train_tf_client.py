@@ -150,6 +150,8 @@ class TFWorker(TrainTestWorker):
                 grad_np = grad.numpy()
                 name = vars_[i].name
                 save_dict[name] = grad_np
+                # uncomment to log the mean gradients of the variables
+                #save_dict[name + "_grads_loss"] = np.mean(grad_np)
             for k, v in losses.items():
                 save_dict[k] = v.numpy()
             np.savez("./tmp/grads_" + str(self.id) + ".npz", **save_dict)
