@@ -82,6 +82,8 @@ def prepare_scenes(dataset_name):
                     break
                 p_vec = np.ones((P_O.shape[0], 1), np.int32)
                 label = obj_file.split("_")[0]
+                #if label == "chair":
+                #    render_point_cloud(P=P_O, animate=False)
                 
                 """
                 if label not in labels:
