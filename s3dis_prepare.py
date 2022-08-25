@@ -34,7 +34,11 @@ def prepare_scenes(dataset_name):
     mkdir("./S3DIS_Scenes")
     s3dis_dir = os.environ["S3DIS_DIR"] + "/data"
     special_objects = get_special_objects()
-
+    """
+    labels = []
+    label_2_nr = {}
+    current_nr = 1
+    """
     for dir in os.listdir(s3dis_dir):
         area_dir = s3dis_dir + "/" + dir
         if not os.path.isdir(area_dir):
@@ -78,11 +82,22 @@ def prepare_scenes(dataset_name):
                     break
                 p_vec = np.ones((P_O.shape[0], 1), np.int32)
                 label = obj_file.split("_")[0]
+                
+                """
+                if label not in labels:
+                    labels.append(label)
+                    label_2_nr[label] = current_nr
+                    current_nr += 1
+                p_vec *= label_2_nr[label]
+                """
+
+                #"""
                 if label in special_objects:
                     p_vec *= special_objects[label]
                 else:
                     p_vec *= O
                     O += 1
+                #"""
                 partition_vec = np.vstack((partition_vec, p_vec))
             if ok:
                 xyz_mean = np.mean(P[:, :3], axis=0)
@@ -113,7 +128,7 @@ def main():
     parser.add_argument(
         "--scene",
         type=str,
-        default="Area1_office_30",
+        default="Area1_conferenceRoom_1",
         help="scene from the scannet dataset")
     parser.add_argument(
         "--use_scene",
@@ -140,12 +155,9 @@ def main():
     print("mode:", args.mode)
     if args.mode == "visualize_single":
         # TODO: load scenes via scene directories
-        dat_p = DataProvider(verbose=args.verbose)
-        dat_p.id = args.scene
-        print("scene:", args.scene)
-        P, partition_vec, id = dat_p.get_cloud_and_partition()
-        print(id, P.shape, partition_vec.shape)
-        # n_objects = np.unique(partition_vec).shape[0]
+        data = np.load("./S3DIS_Scenes/" + args.scene + "/P.npz")
+        P = data["P"]
+        partition_vec = data["partition_vec"]
         render_point_cloud(P=P, animate=args.animate)
         render_point_cloud(
             P=P, partition_vec=partition_vec, animate=args.animate)
