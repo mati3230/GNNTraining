@@ -61,7 +61,7 @@ def render_graph(P, nodes, sp_idxs, sp_centers=None, senders=None, receivers=Non
     
     o3d.visualization.draw_geometries(visu_list)
 
-def plot_samples2D(P, i, center):
+def plot_samples2D(P, i, center, title="Test"):
 
     m = np.ones((P.shape[0], ), dtype=np.bool)
     m[i] = False
@@ -75,7 +75,7 @@ def plot_samples2D(P, i, center):
     plt.scatter(center[0], center[1], label='Center', color='g', s=25, marker="*")
     plt.xlabel('x')
     plt.ylabel('y')
-    plt.title('Test')
+    plt.title(title)
     plt.legend()
     plt.show()
 
@@ -118,8 +118,9 @@ def test(p1=60, p1_mu=0.9, p1_sigma=0.1, p2=10, p2_div = 8, p2_off=0.1, k=4, far
     # sample the k farthest or nearest points and plot them
     center = np.mean(P, axis=0)
     i, d = get_characteristic_points(P=P, center=center, k=k, far_points=far)
+    # i is a list of sampled point indices
     i = np.array(i, dtype=np.int32)
-    plot_samples2D(P=P, i=i, center=center)
+    plot_samples2D(P=P, i=i, center=center, title="Farthest Point Sampling")
 
     # sample points by considering the distance from the center point
     d_sort, distances = distance_sort(P=P, p_query=center)
@@ -127,7 +128,10 @@ def test(p1=60, p1_mu=0.9, p1_sigma=0.1, p2=10, p2_div = 8, p2_off=0.1, k=4, far
         i = d_sort[-k:]
     else:
         i = d_sort[:k]
-    plot_samples2D(P=P, i=i, center=center)
+    plot_samples2D(P=P, i=i, center=center, title="Farthest Neighbour Sampling")
+
+    i = np.random.randint(low=0, high=P.shape[0], size=(k, ))
+    plot_samples2D(P=P, i=i, center=center, title="Discrete Uniform Distribution Sampling")
 
 
 def get_characteristic_points(P, center, k, far_points=True):
@@ -1428,6 +1432,7 @@ def test_line_graph():
     print(receivers)
 
 if __name__ == "__main__":
+    #test()
     #test_line_graph()
     #"""
     parser = argparse.ArgumentParser()
