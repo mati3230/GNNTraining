@@ -6,7 +6,7 @@ from optimization.base_policy import BasePolicy
 from optimization.tf_utils import fast_dot, graph_convolution2
 
 
-class FFGraphNet(BasePolicy):
+class GraphNetLight(BasePolicy):
     def __init__(
             self,
             name,
@@ -38,18 +38,21 @@ class FFGraphNet(BasePolicy):
     def action(self, obs, training=False, decision_boundary=0.5, edge_idxs=None):
         out_g1 = graph_convolution2(
             model_fn_node=self.model_fn_node_1,
-            model_fn_neigh=self.model_fn_neigh_1,
+            model_fn_neigh=self.model_fn_node_1,
             activation=tf.nn.relu,
             input_graphs=obs,
             training=training,
-            att_model_fn=self.model_fn_att_1)
+            att_model_fn=None)
+        
+        #"""
         out_g2 = graph_convolution2(
             model_fn_node=self.model_fn_node_2,
-            model_fn_neigh=self.model_fn_neigh_2,
-            activation=None,
+            model_fn_neigh=self.model_fn_node_2,
+            activation=tf.nn.relu,
             input_graphs=out_g1,
             training=training,
-            att_model_fn=self.model_fn_att_2)
+            att_model_fn=None)
+        #"""
         
         out_g2_n = tf.concat([out_g2.nodes, out_g1.nodes], axis=-1)
 
@@ -65,6 +68,7 @@ class FFGraphNet(BasePolicy):
         else:
             #s = obs.senders[edge_idxs]
             #r = obs.receivers[edge_idxs]
+            edge_idxs = edge_idxs.astype(np.int32)
             s = tf.gather(obs.senders, indices=edge_idxs)
             r = tf.gather(obs.receivers, indices=edge_idxs)
         fi = tf.gather(out_g2.nodes, indices=s)
@@ -89,43 +93,17 @@ class FFGraphNet(BasePolicy):
             seed=None,
             initializer="glorot_uniform",
             mode="full"):
-        dropout = 0.1
+        dropout = 0
         self.model_fn_node_1 = MLP(
-            layer_dims=[512, 256, 128],
-            activations=[tf.nn.relu, tf.nn.relu, tf.nn.relu],
+            layer_dims=[8],
+            activations=[None],
             name="mlp_node_1",
             dropout=dropout
             )
         self.model_fn_node_2 = MLP(
-            layer_dims=[64, 16],
-            activations=[tf.nn.relu, None],
+            layer_dims=[8],
+            activations=[None],
             name="mlp_node_2",
-            dropout=dropout
-            )
-        self.model_fn_neigh_1 = MLP(
-            layer_dims=[512, 256, 128],
-            activations=[tf.nn.relu, tf.nn.relu, tf.nn.relu],
-            name="mlp_neigh_1",
-            dropout=dropout
-            )
-        self.model_fn_neigh_2 = MLP(
-            layer_dims=[64, 16],
-            activations=[tf.nn.relu, tf.nn.relu, None],
-            name="mlp_neigh_2",
-            dropout=dropout
-            )
-        self.model_fn_att_1 = MLP(
-            layer_dims=[128],
-            activations=[None],
-            name="mlp_att_1",
-            use_bias=False,
-            dropout=dropout
-            )
-        self.model_fn_att_2 = MLP(
-            layer_dims=[64],
-            activations=[None],
-            name="mlp_att_2",
-            use_bias=False,
             dropout=dropout
             )
 
@@ -143,11 +121,7 @@ class FFGraphNet(BasePolicy):
     def get_vars(self, with_non_trainable=True):
         vars_ = []
         vars_.extend(self.model_fn_node_1.variables)
-        vars_.extend(self.model_fn_neigh_1.variables)
         vars_.extend(self.model_fn_node_2.variables)
-        vars_.extend(self.model_fn_neigh_2.variables)
-        vars_.extend(self.model_fn_att_1.variables)
-        vars_.extend(self.model_fn_att_2.variables)
         return vars_
 
     def reset(self):
