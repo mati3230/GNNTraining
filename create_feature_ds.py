@@ -348,21 +348,24 @@ def hists_feature(P, center, bins=10, min_r=-0.5, max_r=0.5):
     return hists
 
 
-def compute_features_geof(cloud, geof, mean_cloud, std_cloud, mean_geof, std_geof):
+def compute_features_geof(cloud, geof, mean_cloud, std_cloud, mean_geof, std_geof, use_rgb):
     geof_mean = np.mean(geof, axis=0)
     #geof_mean = 2 * (geof_mean - 0.5)
     geof_mean = (geof_mean - mean_geof) / std_geof
 
-    #rgb_mean = np.mean(cloud[:, 3:6], axis=0)
-    #rgb_mean = (rgb_mean - mean_cloud[3:6]) / std_cloud[3:6]
-        
-    #print(geof_mean, rgb_mean)
-
-    #feats = np.vstack((geof_mean[:, None], rgb_mean[:, None]))
-    feats = geof_mean
+    if use_rgb:
+        rgb_mean = np.mean(cloud[:, 3:6], axis=0)
+        rgb_mean = (rgb_mean - mean_cloud[3:6]) / std_cloud[3:6]
+        feats = np.vstack((geof_mean[:, None], rgb_mean[:, None]))
+        #print(geof_mean, rgb_mean)
+    else:
+        feats = geof_mean
     feats = feats.astype(np.float32)
     feats = feats.reshape(feats.shape[0], )
-    return feats, np.any(np.isnan(geof_mean))# or np.any(np.isnan(rgb_mean))
+    if use_rgb:
+        return feats, np.any(np.isnan(geof_mean)) or np.any(np.isnan(rgb_mean))
+    else:
+        return feats, np.any(np.isnan(geof_mean))
 
 
 def compute_features(cloud, n_curv=30, k_curv=14, k_far=30, n_normal=30, bins=10, min_r=-0.5, max_r=0.5):
@@ -1256,6 +1259,7 @@ def process_scenes(id, args, min_i, max_i):
     depth = args["depth"]
     batch_size = args["batch_size"]
     use_line_graph = args["use_line_graph"]
+    use_rgb = args["use_rgb"]
     n_ft = None
     sp_sizes = []
     for i in range(min_i, max_i):
@@ -1303,7 +1307,7 @@ def process_scenes(id, args, min_i, max_i):
             sp_geof = geof[sp_idxs_]
 
             features, isnan = compute_features_geof(cloud=sp, geof=sp_geof,
-                mean_cloud=mean_P, std_cloud=std_P, mean_geof=mean_geof, std_geof=std_geof)
+                mean_cloud=mean_P, std_cloud=std_P, mean_geof=mean_geof, std_geof=std_geof, use_rgb=use_rgb)
             n_ft = features.shape[0]
             print("feature vector has size of {0}".format(n_ft))
         all_features = np.zeros((n_sps, n_ft), dtype=np.float32)
@@ -1315,7 +1319,7 @@ def process_scenes(id, args, min_i, max_i):
             sp_geof = geof[sp_idxs_]
             sps_sizes.append(sp_idxs_.shape[0])
             features, isnan = compute_features_geof(cloud=sp, geof=sp_geof,
-                mean_cloud=mean_P, std_cloud=std_P, mean_geof=mean_geof, std_geof=std_geof)
+                mean_cloud=mean_P, std_cloud=std_P, mean_geof=mean_geof, std_geof=std_geof, use_rgb=use_rgb)
             if isnan:
                 break
             all_features[k] = features
@@ -1384,6 +1388,7 @@ def main(args):
     wargs["batch_size"] = args.batch_size
     wargs["depth"] = args.depth
     wargs["use_line_graph"] = args.use_line_graph
+    wargs["use_rgb"] = args.use_rgb
 
     mkdir(args.out_dataset + "/graphs")
     # print("PID\tProgress\tScene\t|S|")
@@ -1464,6 +1469,11 @@ if __name__ == "__main__":
         type=bool,
         default=False,
         help="Activate calculation of the line graph")
+    parser.add_argument(
+        "--use_rgb",
+        type=bool,
+        default=False,
+        help="Use rgb data in feature vectors")
     args = parser.parse_args()
     main(args=args)
     #"""
