@@ -51,15 +51,15 @@ class KFoldWorker(BaseWorkerProcess):
             self.test_bool = False
         elif msg == "test":
             self.test_bool = True
-        print("test_bool", self.test_bool)
+        #print("test_bool", self.test_bool)
         self.load_model(dir="./tmp", name="tmp_net")
 
     def progress(self):
         if self.test_bool:
-            print("test")
+            #print("test")
             self.test()
         else:
-            print("train")
+            #print("train")
             self.train_step += 1
             self.train()
         self.step += 1
@@ -161,11 +161,11 @@ class KFoldClient(Client):
     def on_loop_end(self):
         test = self.step % self.test_interval == 0 and not self.test_loop
         if test:
-            print("test", self.test_loop, self.train_step, self.test_interval, self.step)
+            #print("test", self.test_loop, self.train_step, self.test_interval, self.step)
             self.test_loop = True
             self.msg_to_workers("test")
         else:
-            print("train", self.test_loop, self.train_step, self.test_interval, self.step)
+            #print("train", self.test_loop, self.train_step, self.test_interval, self.step)
             self.test_loop = False
             self.msg_to_workers("train")
     

@@ -57,7 +57,7 @@ class NodeProcess(Process):
         while self.work:
             self.send_update()
             recv_msg = self.recv_loop()
-            #print("msg to master: {0}".format(recv_msg))
+            print("msg to master: {0}".format(recv_msg))
             self.conn.send(recv_msg)
             self.ready_val.value = 0
             self.rv_wait()
@@ -225,7 +225,7 @@ class Server(ABC):
             n_loop += 1
             if self.n_loops > 0:
                 print("Loop {0}".format(n_loop))
-        print("stop master loop")
-        self.stop()
         if self.n_loops <= 0:
             self.on_stop()
+        print("stop master loop")
+        self.stop()

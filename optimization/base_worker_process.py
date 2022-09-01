@@ -82,6 +82,7 @@ class BaseWorkerProcess(Process):
             except EOFError:
                 print("EOFError occured")
                 msg = "stop"
+            print("check master process", msg)
             if msg == "stop":
                 self.work = False
                 return

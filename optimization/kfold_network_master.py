@@ -50,7 +50,7 @@ class KFoldNodeProcess(NodeProcess):
         self.tested = False
 
     def receive_test_results(self):
-        print("recv test results")
+        #print("recv test results")
         for i in range(self.n_node_cpus):
             if self.test_msg_size is None:
                 fsize = socket_recv(file="./tmp/test_stats_" + str(self.id) + "_" + str(i) + ".npz", sock=self.sock,
@@ -64,7 +64,7 @@ class KFoldNodeProcess(NodeProcess):
         #print("stats received")
 
     def receive_gradients(self):
-        print("receive gradients")
+        #print("receive gradients")
         for i in range(self.n_node_cpus):
             if self.grads_msg_size is None:
                 fsize = socket_recv(file="./tmp/grads_" + str(self.id) + "_" + str(i) + ".npz", sock=self.sock,
