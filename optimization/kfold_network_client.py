@@ -26,7 +26,8 @@ class KFoldWorker(BaseWorkerProcess):
             test_idxs,
             start_with_work=True):
         self.test_bool = False
-        self.train_step = -1
+        self.train_step = 0
+        self.step = 1
         self.test_interval = test_interval
         self.k_fold = k_fold
         self.seed = seed
@@ -61,6 +62,7 @@ class KFoldWorker(BaseWorkerProcess):
             print("train")
             self.train_step += 1
             self.train()
+        self.step += 1
         #print("done")
         return "done"
 
@@ -105,7 +107,8 @@ class KFoldClient(Client):
         self.net_file = model_dir + "/" + model_name + ".npz"
         self.net_msg_size = None
         self.test_loop = False
-        self.train_step = -1
+        self.train_step = 0
+        self.step = 0
         super().__init__(
             n_cpus=n_cpus,
             shared_value=shared_value,
@@ -148,6 +151,7 @@ class KFoldClient(Client):
                 msg = self.sock.recv(128)
                 #print(msg.decode())
             self.train_step += 1
+        self.step += 1
         #print("done - wait for network update")
         ret = socket_recv(file=self.net_file, sock=self.sock, buffer_size=self.buffer_size, msg_size=self.net_msg_size)
         if self.net_msg_size is None:
@@ -155,13 +159,13 @@ class KFoldClient(Client):
         #print("done")
 
     def on_loop_end(self):
-        test = self.train_step % self.test_interval == 0 and not self.test_loop
+        test = self.step % self.test_interval == 0 and not self.test_loop
         if test:
-            print("test", self.test_loop, self.train_step, self.test_interval)
+            print("test", self.test_loop, self.train_step, self.test_interval, self.step)
             self.test_loop = True
             self.msg_to_workers("test")
         else:
-            print("train", self.test_loop, self.train_step, self.test_interval)
+            print("train", self.test_loop, self.train_step, self.test_interval, self.step)
             self.test_loop = False
             self.msg_to_workers("train")
     

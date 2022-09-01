@@ -29,7 +29,6 @@ class KFoldTFServer(KFoldServer):
         self.model = model
         self.global_norm_t = global_norm_t
         self.optimizer=tf.optimizers.Adam(learning_rate=learning_rate)
-        self.train_step = -1
         self.save_param = save_param
         self.best_stat_val = 0
         

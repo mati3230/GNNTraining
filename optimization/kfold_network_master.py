@@ -45,7 +45,8 @@ class KFoldNodeProcess(NodeProcess):
         #print("Send net done")
 
     def on_run_start(self):
-        self.train_step = -1
+        self.train_step = 0
+        self.step = -1
         self.tested = False
 
     def receive_test_results(self):
@@ -77,16 +78,18 @@ class KFoldNodeProcess(NodeProcess):
         #print("gradients received")
 
     def recv_loop(self):
-        if self.train_step % self.test_interval == 0 and not self.tested:
+        if self.step % self.test_interval == 0 and not self.tested:
             # apply a test step
             self.receive_test_results()
             self.tested = True
+            self.step += 1
             return "recv_test"
         else:
             # apply a train step
             self.receive_gradients()
             self.tested = False
             self.train_step += 1
+            self.step += 1
             return "recv_train"
 
 class KFoldServer(Server):
@@ -216,12 +219,13 @@ class KFoldServer(Server):
             self.store_grads(msg=msg, id=id)
 
     def on_start(self):
-        self.train_step = -1
+        self.train_step = 0
         self.test_step = 0
+        self.step = -1
         self.did = 0
 
     def on_recv(self):
-        self.test = self.train_step % self.test_interval == 0 and not self.test
+        self.test = self.step % self.test_interval == 0 and not self.test
 
     def on_loop(self):
         # data is already received at this point
@@ -232,9 +236,10 @@ class KFoldServer(Server):
             self.reset_method()
             self.save_model()
         else:
-            self.train_step += 1
             self.reduce()
             self.save_model()
+            self.train_step += 1
+        self.step += 1
         self.did = 0
 
     def on_stop(self):
