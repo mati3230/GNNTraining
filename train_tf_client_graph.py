@@ -143,13 +143,13 @@ class KFoldTFWorkerGraph(KFoldTFWorker):
         test_fold_fname = k_fold_dir + "/" + str(test_fold) + ".h5"
         train_folds_fnames = [k_fold_dir + "/" + str(train_fold) + ".h5" for train_fold in train_folds]
 
-        hf_test = h5py.File(test_fold_fname, "w")
+        hf_test = h5py.File(test_fold_fname, "r")
         test_areas = hf_test["area_names"].copy()
         hf_test.close()
 
         train_areas = []
         for fname in train_folds_fnames:
-            hf_train = h5py.File(fname, "w")
+            hf_train = h5py.File(fname, "r")
             train_area = hf_test["area_names"].copy()
             hf_train.close()
             train_areas.extend(train_area)
@@ -199,13 +199,13 @@ class KFoldTFClientGraph(KFoldTFClient):
         test_fold_fname = k_fold_dir + "/" + str(test_fold) + ".h5"
         train_folds_fnames = [k_fold_dir + "/" + str(train_fold) + ".h5" for train_fold in train_folds]
 
-        hf_test = h5py.File(test_fold_fname, "w")
+        hf_test = h5py.File(test_fold_fname, "r")
         test_areas = hf_test["area_names"].copy()
         hf_test.close()
 
         train_areas = []
         for fname in train_folds_fnames:
-            hf_train = h5py.File(fname, "w")
+            hf_train = h5py.File(fname, "r")
             train_area = hf_test["area_names"].copy()
             hf_train.close()
             train_areas.extend(train_area)
