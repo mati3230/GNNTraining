@@ -32,6 +32,10 @@ def file_exists(filepath):
     return os.path.isfile(filepath)
 
 
+def dir_exists(dirpath):
+    return os.path.isdir(dirpath)
+
+
 def coordinate_system():
     """Returns a coordinate system.
 

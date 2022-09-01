@@ -18,7 +18,7 @@ from scipy.spatial import Delaunay
 from environment.density_utils import densities_np, densities_np_osize
 from environment.partition import Partition
 from policies.utils import estimate_normals_curvature, get_general_bb#, pad_or_sample_points
-from environment.utils import mkdir
+from environment.utils import mkdir, dir_exists
 from cpu_utils import process_range
 from optimization.utils import distance_sort
 from optimization.tf_utils import np_fast_dot
@@ -1405,7 +1405,18 @@ def main(args):
 
     mkdir(args.out_dataset + "/graphs")
     
+    recalc = False # indicates the recalculation of folds
     if args.k_fold >= 2:
+        if dir_exists(args.out_dataset + "/folds"):
+            fold_files = os.listdir(args.out_dataset + "/folds")
+            if len(fold_files) == args.k_fold:
+                print("Folds already created")
+                return
+            print("Recalculate folds")
+            for file in fold_files:
+                os.remove(file)
+            recalc = True
+
         random.shuffle(scenes)
         n_scenes = len(scenes)
         enough_scenes = n_scenes >= args.k_fold
@@ -1418,6 +1429,8 @@ def main(args):
                 stop = start  + args.k_fold
                 scenes_fold = scenes[start:stop]
                 store_fold(dataset=args.out_dataset, i=i, scenes=scenes_fold)
+            if recalc:
+                return
             if args.batch_size != 0:
                 wargs["dataset"] = args.out_dataset + "_batches"
                 process_range(workload=len(scenes), n_cpus=args.n_cpus, process_class=Process, target=process_scenes, args=wargs)
