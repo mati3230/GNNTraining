@@ -5,6 +5,7 @@ import h5py
 import os
 import math
 import open3d as o3d
+import random
 
 import matplotlib.pyplot as plt
 
@@ -1143,6 +1144,14 @@ def store_graph(dataset, area_room_name, j, node_features, senders, receivers, u
     hf.close()
 
 
+def store_fold(dataset, i, scenes):
+    # e.g. ./s3dis/graphs/Area1_conferenceRoom_1.h5 will be stored as new file
+    hf = h5py.File("{0}/folds/{1}.h5".format(dataset, i), "w")
+    area_names = [scenes[j][1] for j in range(len(scenes))]
+    hf.create_dataset("area_names", data=area_names)
+    hf.close()
+
+
 def line_graph(alpha, all_features, senders, receivers, uni_senders ,senders_idxs, senders_counts, pos):
     edges_sets = []
     node_features = []
@@ -1263,7 +1272,7 @@ def process_scenes(id, args, min_i, max_i):
     n_ft = None
     sp_sizes = []
     for i in range(min_i, max_i):
-        scene = scenes[i]
+        scene = scenes[i][0]
         strs = scene.split("/")
         area_room_name = strs[-2]
 
@@ -1379,9 +1388,12 @@ def process_scenes(id, args, min_i, max_i):
 def main(args):
     wargs = {}
     scenes = []
+    
     for area_room in os.listdir(args.dataset):
         # e.g. ./S3DIS_Scenes/Area1_conferenceRoom_1/P.npz
-        scenes.append(args.dataset + "/" + area_room + "/P.npz")
+        fname = args.dataset + "/" + area_room + "/P.npz"
+        scenes.append((fname, area_room))
+    
     #scenes = scenes[:10]
     wargs["scenes"] = scenes
     wargs["dataset"] = args.out_dataset
@@ -1389,9 +1401,30 @@ def main(args):
     wargs["depth"] = args.depth
     wargs["use_line_graph"] = args.use_line_graph
     wargs["use_rgb"] = args.use_rgb
+    wargs["k_fold"] = args.k_fold
 
     mkdir(args.out_dataset + "/graphs")
-    # print("PID\tProgress\tScene\t|S|")
+    
+    if args.k_fold >= 2:
+        random.shuffle(scenes)
+        n_scenes = len(scenes)
+        enough_scenes = n_scenes >= args.k_fold
+        if enough_scenes:
+            n_scenes = args.k_fold * math.floor(n_scenes / args.k_fold)
+            scenes = scenes[:n_scenes]
+            mkdir(args.out_dataset + "/folds")
+            for i in range(args.k_fold):
+                start = i * args.k_fold
+                stop = start  + args.k_fold
+                scenes_fold = scenes[start:stop]
+                store_fold(dataset=args.out_dataset, i=i, scenes=scenes_fold)
+            if args.batch_size != 0:
+                wargs["dataset"] = args.out_dataset + "_batches"
+                process_range(workload=len(scenes), n_cpus=args.n_cpus, process_class=Process, target=process_scenes, args=wargs)
+                wargs["dataset"] = args.out_dataset + "_full"
+            wargs["batch_size"] = 0
+        else:
+            print("Have not enough scenes to calculate k={0} folds".format(args.k_fold))
     process_range(workload=len(scenes), n_cpus=args.n_cpus, process_class=Process, target=process_scenes, args=wargs)
 
 
@@ -1474,6 +1507,11 @@ if __name__ == "__main__":
         type=bool,
         default=False,
         help="Use rgb data in feature vectors")
+    parser.add_argument(
+        "--k_fold",
+        type=int,
+        default=0,
+        help="Number of folds for k fold cross validation. No folds will be calculated with k_fold <= 1")
     args = parser.parse_args()
     main(args=args)
     #"""
