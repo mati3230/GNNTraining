@@ -132,8 +132,8 @@ class KFoldClient(Client):
         train_idxs_w = np.array(self.train_idxs[tr_start:tr_stop], copy=True)
         _, te_start, te_stop = divide_work(worker_id=id, n_workers=self.n_cpus, workload=self.test_n)
         test_idxs_w = np.array(self.test_idxs[te_start:te_stop], copy=True)
-        print("worker id: {0}, n_cpus: {1}".format(id, self.n_cpus))
-        print("worker id: {0}, train start: {1}, train stop: {2}, test start: {3}, test stop: {4}".format(id, tr_start, tr_stop, te_start, te_stop))
+        #print("worker id: {0}, n_cpus: {1}".format(id, self.n_cpus))
+        #print("worker id: {0}, train start: {1}, train stop: {2}, test start: {3}, test stop: {4}".format(id, tr_start, tr_stop, te_start, te_stop))
         if train_idxs_w.shape[0] == 0:
             raise Exception("Zero train idxs in worker {0}, train_idxs shape: {1}, train_n: {2}".format(id, self.train_idxs.shape, self.train_n))
         if test_idxs_w.shape[0] == 0:
@@ -180,9 +180,7 @@ class KFoldClient(Client):
         if test:
             #print("test", self.test_loop, self.train_step, self.test_interval, self.step)
             self.test_loop = True
-            print("load next fold")
             self.load()
-            print("reassign idxs")
             self.reassign_train_test_idxs()
             self.msg_to_workers("test")
         else:
