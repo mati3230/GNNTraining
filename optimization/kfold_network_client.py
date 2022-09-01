@@ -94,7 +94,7 @@ class KFoldClient(Client):
             dataset_dir="/edges_0/s3dis/edges",
             buffer_size=4096):
         self.dataset_dir = dataset_dir
-        self.k_fold_dir = self.dataset_dir + "../folds"
+        self.k_fold_dir = self.dataset_dir + "/../folds"
         self.buffer_size = buffer_size
         model_dir = "./tmp"
         model_name = "tmp_net"

@@ -6,6 +6,7 @@ from graph_nets import utils_tf
 from multiprocessing import Value
 import os
 import math
+import h5py
 
 from optimization.train_tf_client import TFWorker, TFClient
 from optimization.kfold_tf_client import KFoldTFWorker, KFoldTFClient
@@ -139,7 +140,7 @@ class KFoldTFWorkerGraph(KFoldTFWorker):
     def load_batch(self, i, train_idxs, dir, files, batch_size):
         return load_graph_batch(i=i, dir=dir, files=files)
 
-    def load_folds(self, k_fold_dir, train_folds, test_fold)
+    def load_folds(self, k_fold_dir, train_folds, test_fold):
         test_fold_fname = k_fold_dir + "/" + str(test_fold) + ".h5"
         train_folds_fnames = [k_fold_dir + "/" + str(train_fold) + ".h5" for train_fold in train_folds]
 
@@ -195,7 +196,7 @@ class KFoldTFClientGraph(KFoldTFClient):
             dataset_dir=dataset_dir,
             buffer_size=buffer_size)
 
-    def load_folds(self, k_fold_dir, train_folds, test_fold)
+    def load_folds(self, k_fold_dir, train_folds, test_fold):
         test_fold_fname = k_fold_dir + "/" + str(test_fold) + ".h5"
         train_folds_fnames = [k_fold_dir + "/" + str(train_fold) + ".h5" for train_fold in train_folds]
 

@@ -4,7 +4,6 @@ import os
 import math
 from multiprocessing import Value
 from abc import abstractmethod
-import h5py
 
 from .kfold_network_client import KFoldWorker, KFoldClient
 from .base_trainer import BaseTrainer
@@ -285,7 +284,7 @@ class KFoldTFClient(KFoldClient):
         test_fold = self.train_step + 1
         del train_folds[test_fold]
 
-        train_data, test_data = self.load_folds(k_fold_dir=k_fold_dir, train_folds=train_folds, test_fold=test_fold)
+        train_data, test_data = self.load_folds(k_fold_dir=self.k_fold_dir, train_folds=train_folds, test_fold=test_fold)
         train_idxs = np.arange(len(train_data), dtype=np.uint32)
         test_idxs = np.arange(len(test_data), dtype=np.uint32)
         return train_data, train_idxs, test_data, test_idxs

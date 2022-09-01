@@ -253,7 +253,7 @@ class KFoldServer(Server):
         for key in keys:
             avg_fs[key] = 0
             raw_fs[key] = n_folds * [0]
-        for i in range(len(keys))
+        for i in range(len(keys)):
             avg = 0
             key = keys[i]
             for j in range(n_folds):
