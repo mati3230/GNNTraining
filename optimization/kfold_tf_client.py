@@ -288,11 +288,11 @@ class KFoldTFClient(KFoldClient):
     def load_dataset(self):
         train_folds = list(range(self.k_fold))
         test_fold = self.train_step
+        print(test_fold)
         del train_folds[test_fold]
 
         train_data, test_data = self.load_folds(k_fold_dir=self.k_fold_dir, train_folds=train_folds,
             test_fold=test_fold)
-        print("test data:", test_data)
         train_idxs = np.arange(len(train_data), dtype=np.uint32)
         test_idxs = np.arange(len(test_data), dtype=np.uint32) + train_idxs.shape[0]
         train_data.extend(test_data)
