@@ -109,5 +109,5 @@ class KFoldTFServer(KFoldServer):
         msg += "," + self.args_file
         return msg
 
-    def reset_method():
+    def reset_method(self):
         self.model.load(directory=self.model_dir, filename="init_net")

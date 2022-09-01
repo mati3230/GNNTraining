@@ -12,9 +12,12 @@ except ImportError:
     print("Cannot import opencv")
 
 
-def load_graph_batch(i, dir, files):
+def load_graph_batch(i, files, dir=None):
     file = files[i]
-    file_dir = dir + "/" + file
+    if dir is None:
+        file_dir = file
+    else:
+        file_dir = dir + "/" + file
 
     hf = h5py.File(file_dir, "r")
 

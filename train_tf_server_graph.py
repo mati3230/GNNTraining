@@ -103,6 +103,7 @@ def main():
     if args.k_fold:
         folds_dir = "./" + args.dataset + "/folds"
         k_fold = len(os.listdir(folds_dir))
+        print("k fold with {0} folds".format(k_fold))
         policy.save(directory=model_dir, filename="init_net")
         tf_server = KFoldTFServer(
             args_file=args.args_file,

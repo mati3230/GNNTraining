@@ -135,26 +135,28 @@ class KFoldTFWorkerGraph(KFoldTFWorker):
 
     def load_example(self, dir, files, idx):
         #print("load_example with {0} links".format(self.n_links))
-        return load_graph_batch(i=idx, dir=dir, files=files)
+        return load_graph_batch(i=idx, files=files)
 
     def load_batch(self, i, train_idxs, dir, files, batch_size):
-        return load_graph_batch(i=i, dir=dir, files=files)
+        return load_graph_batch(i=i, files=files)
 
     def load_folds(self, k_fold_dir, train_folds, test_fold):
         test_fold_fname = k_fold_dir + "/" + str(test_fold) + ".h5"
         train_folds_fnames = [k_fold_dir + "/" + str(train_fold) + ".h5" for train_fold in train_folds]
 
         hf_test = h5py.File(test_fold_fname, "r")
-        test_areas = hf_test["area_names"].copy()
+        test_areas = list(hf_test["area_names"])
+        test_areas = [ta.decode() for ta in test_areas]
         hf_test.close()
 
         train_areas = []
         for fname in train_folds_fnames:
             hf_train = h5py.File(fname, "r")
-            train_area = hf_test["area_names"].copy()
+            train_area = list(hf_train["area_names"])
+            train_area = [ta.decode() for ta in train_area]
             hf_train.close()
             train_areas.extend(train_area)
-        subgraph_dir = self.dataset_dir + "../subgraphs"
+        subgraph_dir = self.dataset_dir + "/../subgraphs"
         use_subgraph = os.path.exists(subgraph_dir)
         if use_subgraph:
             files = os.listdir(subgraph_dir)
@@ -165,9 +167,8 @@ class KFoldTFWorkerGraph(KFoldTFWorker):
                     if file.starts_with(train_area):
                         train_files.append(subgraph_dir + "/" + file)
         else:
-            train_files = [self.dataset_dir + "../graphs/" + area_name + "_0.h5" for area_name in train_files]
-        test_files = [self.dataset_dir + "../graphs/" + area_name + "_0.h5" for area_name in test_areas]
-
+            train_files = [self.dataset_dir + "/" + area_name + "_0.h5" for area_name in train_areas]
+        test_files = [self.dataset_dir + "/" + area_name + "_0.h5" for area_name in test_areas]
         return train_files, test_files
 
 
@@ -201,16 +202,18 @@ class KFoldTFClientGraph(KFoldTFClient):
         train_folds_fnames = [k_fold_dir + "/" + str(train_fold) + ".h5" for train_fold in train_folds]
 
         hf_test = h5py.File(test_fold_fname, "r")
-        test_areas = hf_test["area_names"].copy()
+        test_areas = list(hf_test["area_names"])
+        test_areas = [ta.decode() for ta in test_areas]
         hf_test.close()
 
         train_areas = []
         for fname in train_folds_fnames:
             hf_train = h5py.File(fname, "r")
-            train_area = hf_test["area_names"].copy()
+            train_area = list(hf_train["area_names"])
+            train_area = [ta.decode() for ta in train_area]
             hf_train.close()
             train_areas.extend(train_area)
-        subgraph_dir = self.dataset_dir + "../subgraphs"
+        subgraph_dir = self.dataset_dir + "/../subgraphs"
         use_subgraph = os.path.exists(subgraph_dir)
         if use_subgraph:
             files = os.listdir(subgraph_dir)
@@ -221,8 +224,9 @@ class KFoldTFClientGraph(KFoldTFClient):
                     if file.starts_with(train_area):
                         train_files.append(subgraph_dir + "/" + file)
         else:
-            train_files = [self.dataset_dir + "../graphs/" + area_name + "_0.h5" for area_name in train_files]
-        test_files = [self.dataset_dir + "../graphs/" + area_name + "_0.h5" for area_name in test_areas]
+            train_files = [self.dataset_dir + "/" + area_name + "_0.h5" for area_name in train_areas]
+        test_files = [self.dataset_dir + "/" + area_name + "_0.h5" for area_name in test_areas]
+        return train_files, test_files
 
     def get_worker(self, conn, id, ready_val, lock, train_idxs, test_idxs):
         return KFoldTFWorkerGraph(

@@ -30,7 +30,7 @@ class KFoldTFWorker(KFoldWorker):
             start_with_work=True,
             verbose=False):
         self.verbose = verbose
-        self.k_fold_dir = dataset_dir + "../folds"
+        self.k_fold_dir = dataset_dir + "/../folds"
         tf.random.set_seed(seed)
         super().__init__(
             conn=conn,
@@ -111,9 +111,9 @@ class KFoldTFWorker(KFoldWorker):
             "discrete": True}
         policy_type = get_type(trainer.params["policy_path"], trainer.params["policy_type"])
         self.model = policy_type(**policy_args)
-        self.train_data, self.train_idxs, self.test_data, self.test_idxs = self.load_dataset(dir=self.dataset_dir, p_data=self.p_data)
+        self.data_files, self.train_idxs, self.test_idxs = self.load_dataset()
         batch = self.load_batch(i=0, train_idxs=self.train_idxs, dir=self.k_fold_dir,
-            files=self.train_data, batch_size=self.batch_size)
+            files=self.data_files, batch_size=self.batch_size)
         self.prediction(batch=batch)
         self.model.reset()
         print("neural net ready")
@@ -221,10 +221,12 @@ class KFoldTFWorker(KFoldWorker):
         test_fold = self.train_step + 1
         del train_folds[test_fold]
 
-        train_data, test_data = self.load_folds(k_fold_dir=k_fold_dir, train_folds=train_folds, test_fold=test_fold)
+        train_data, test_data = self.load_folds(k_fold_dir=self.k_fold_dir, train_folds=train_folds,
+            test_fold=test_fold)
         train_idxs = np.arange(len(train_data), dtype=np.uint32)
-        test_idxs = np.arange(len(test_data), dtype=np.uint32)
-        return train_data, train_idxs, test_data, test_idxs
+        test_idxs = np.arange(len(test_data), dtype=np.uint32) + train_idxs.shape[0]
+        train_data.extend(test_data)
+        return train_data, train_idxs, test_idxs
 
     @abstractmethod
     def prediction(self, batch):
@@ -284,10 +286,12 @@ class KFoldTFClient(KFoldClient):
         test_fold = self.train_step + 1
         del train_folds[test_fold]
 
-        train_data, test_data = self.load_folds(k_fold_dir=self.k_fold_dir, train_folds=train_folds, test_fold=test_fold)
+        train_data, test_data = self.load_folds(k_fold_dir=self.k_fold_dir, train_folds=train_folds,
+            test_fold=test_fold)
         train_idxs = np.arange(len(train_data), dtype=np.uint32)
-        test_idxs = np.arange(len(test_data), dtype=np.uint32)
-        return train_data, train_idxs, test_data, test_idxs
+        test_idxs = np.arange(len(test_data), dtype=np.uint32) + train_idxs.shape[0]
+        train_data.extend(test_data)
+        return train_data, train_idxs, test_idxs
 
     def get_data(self):
         return self.load_dataset()

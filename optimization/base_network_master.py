@@ -207,7 +207,8 @@ class Server(ABC):
         """Main training loop
         """
         self.on_start()
-        if self.n_loops <= 0:
+        if self.n_loops > 0:
+            print("Execute {0} loops".format(self.n_loops))
             def eval_func(i, n):
                 return i < n
         else:
@@ -222,6 +223,8 @@ class Server(ABC):
                 self.polled[id] = False
                 self.unlock(id=id)
             n_loop += 1
+            if self.n_loops > 0:
+                print("Loop {0}".format(n_loop))
         print("stop master loop")
         self.stop()
         if self.n_loops <= 0:

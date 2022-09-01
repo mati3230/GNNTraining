@@ -49,7 +49,7 @@ class KFoldNodeProcess(NodeProcess):
         self.tested = False
 
     def receive_test_results(self):
-        #print("recv test results")
+        print("recv test results")
         for i in range(self.n_node_cpus):
             if self.test_msg_size is None:
                 fsize = socket_recv(file="./tmp/test_stats_" + str(self.id) + "_" + str(i) + ".npz", sock=self.sock,
@@ -63,7 +63,7 @@ class KFoldNodeProcess(NodeProcess):
         #print("stats received")
 
     def receive_gradients(self):
-        #print("receive gradients")
+        print("receive gradients")
         for i in range(self.n_node_cpus):
             if self.grads_msg_size is None:
                 fsize = socket_recv(file="./tmp/grads_" + str(self.id) + "_" + str(i) + ".npz", sock=self.sock,
@@ -124,7 +124,7 @@ class KFoldServer(Server):
             buffer_size=buffer_size,
             n_nodes=n_nodes,
             recv_timeout=recv_timeout,
-            n_loops=k_fold
+            n_loops=2*k_fold
             )
 
     @abstractmethod
@@ -242,7 +242,7 @@ class KFoldServer(Server):
         self.save_fold_stats(avg_fs=avg_fs, raw_fs=raw_fs)
 
     @abstractmethod
-    def reset_method():
+    def reset_method(self):
         pass
 
     def avg_fold_stats(self, fold_stats):

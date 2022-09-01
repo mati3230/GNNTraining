@@ -26,6 +26,7 @@ class KFoldWorker(BaseWorkerProcess):
             test_idxs,
             start_with_work=True):
         self.test_bool = False
+        self.train_step = -1
         self.test_interval = test_interval
         self.k_fold = k_fold
         self.seed = seed
@@ -49,14 +50,16 @@ class KFoldWorker(BaseWorkerProcess):
             self.test_bool = False
         elif msg == "test":
             self.test_bool = True
+        print("test_bool", self.test_bool)
         self.load_model(dir="./tmp", name="tmp_net")
 
     def progress(self):
         if self.test_bool:
-            #print("test")
+            print("test")
             self.test()
         else:
-            #print("train")
+            print("train")
+            self.train_step += 1
             self.train()
         #print("done")
         return "done"
@@ -95,6 +98,7 @@ class KFoldClient(Client):
             buffer_size=4096):
         self.dataset_dir = dataset_dir
         self.k_fold_dir = self.dataset_dir + "/../folds"
+        print("k fold directory: {0}".format(self.k_fold_dir))
         self.buffer_size = buffer_size
         model_dir = "./tmp"
         model_name = "tmp_net"
@@ -153,11 +157,11 @@ class KFoldClient(Client):
     def on_loop_end(self):
         test = self.train_step % self.test_interval == 0 and not self.test_loop
         if test:
-            #print("test")
+            print("test", self.test_loop, self.train_step, self.test_interval)
             self.test_loop = True
             self.msg_to_workers("test")
         else:
-            #print("train")
+            print("train", self.test_loop, self.train_step, self.test_interval)
             self.test_loop = False
             self.msg_to_workers("train")
     
@@ -179,9 +183,9 @@ class KFoldClient(Client):
         pass
 
     def on_init(self):
-        self.train_files, self.train_idxs, self.test_files, self.test_idxs = self.get_data()
-        self.train_n = len(self.train_files)
-        self.test_n = len(self.test_files)
+        self.data_files, self.train_idxs, self.test_idxs = self.get_data()
+        self.train_n = len(self.train_idxs)
+        self.test_n = len(self.test_idxs)
         print("{0} examples for training, {1} examples for testing".format(self.train_n, self.test_n))
         
         self.train_idxs = split_examples(train_idxs=self.train_idxs, train_n=self.train_n,

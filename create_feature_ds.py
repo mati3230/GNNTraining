@@ -1425,13 +1425,16 @@ def main(args):
         random.shuffle(scenes)
         n_scenes = len(scenes)
         enough_scenes = n_scenes >= args.k_fold
+        print("Have {0} scenes".format(n_scenes))
         if enough_scenes:
-            n_scenes = args.k_fold * math.floor(n_scenes / args.k_fold)
+            scenes_per_fold = math.floor(n_scenes / args.k_fold)
+            print("Use {0} scenes per fold".format(scenes_per_fold))
+            n_scenes = args.k_fold * scenes_per_fold
             scenes = scenes[:n_scenes]
             mkdir(args.out_dataset + "/folds")
             for i in range(args.k_fold):
-                start = i * args.k_fold
-                stop = start  + args.k_fold
+                start = i * scenes_per_fold
+                stop = start  + scenes_per_fold
                 scenes_fold = scenes[start:stop]
                 store_fold(dataset=args.out_dataset, i=i, scenes=scenes_fold)
             if recalc:
@@ -1444,7 +1447,7 @@ def main(args):
             wargs["batch_size"] = 0
         else:
             print("Have not enough scenes to calculate k={0} folds".format(args.k_fold))
-    process_range(workload=len(scenes), n_cpus=args.n_cpus, process_class=Process, target=process_scenes, args=wargs)
+    #process_range(workload=len(scenes), n_cpus=args.n_cpus, process_class=Process, target=process_scenes, args=wargs)
 
 
 def test_line_graph():
