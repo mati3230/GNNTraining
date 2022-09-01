@@ -117,7 +117,7 @@ def main():
             examples_per_fold = len(list(hf["area_names"]))
             hf.close()
             test_interval = examples_per_fold * (n_folds - 1) * n_epochs
-            print("set test interval to {0}".format(test_interval))
+            print("set test interval to {0} with {1} examples per fold ({2} folds)".format(test_interval, examples_per_fold, n_folds))
             return test_interval, examples_per_fold
         tf_server = KFoldTFServer(
             args_file=args.args_file,
