@@ -111,7 +111,7 @@ class KFoldTFWorker(KFoldWorker):
             "discrete": True}
         policy_type = get_type(trainer.params["policy_path"], trainer.params["policy_type"])
         self.model = policy_type(**policy_args)
-        self.data_files, self.train_idxs, self.test_idxs = self.load_dataset()
+        self.data_files, _, _ = self.load_dataset()
         batch = self.load_batch(i=0, train_idxs=self.train_idxs, dir=self.k_fold_dir,
             files=self.data_files, batch_size=self.batch_size)
         self.prediction(batch=batch)
@@ -212,13 +212,17 @@ class KFoldTFWorker(KFoldWorker):
             print(save_dict)
         np.savez("./tmp/test_stats_" + str(self.id) + ".npz", **save_dict)
 
+    def reload_data(self):
+        print("reload data")
+        self.data_files, _, _ = self.load_dataset()
+
     @abstractmethod
     def load_folds(self, k_fold_dir, train_folds, test_fold):
         pass
 
     def load_dataset(self):
         train_folds = list(range(self.k_fold))
-        test_fold = self.train_step + 1
+        test_fold = self.train_step
         del train_folds[test_fold]
 
         train_data, test_data = self.load_folds(k_fold_dir=self.k_fold_dir, train_folds=train_folds,
@@ -283,11 +287,12 @@ class KFoldTFClient(KFoldClient):
 
     def load_dataset(self):
         train_folds = list(range(self.k_fold))
-        test_fold = self.train_step + 1
+        test_fold = self.train_step
         del train_folds[test_fold]
 
         train_data, test_data = self.load_folds(k_fold_dir=self.k_fold_dir, train_folds=train_folds,
             test_fold=test_fold)
+        print("test data:", test_data)
         train_idxs = np.arange(len(train_data), dtype=np.uint32)
         test_idxs = np.arange(len(test_data), dtype=np.uint32) + train_idxs.shape[0]
         train_data.extend(test_data)

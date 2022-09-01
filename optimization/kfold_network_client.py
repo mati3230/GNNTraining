@@ -58,6 +58,7 @@ class KFoldWorker(BaseWorkerProcess):
         if self.test_bool:
             #print("test")
             self.test()
+            self.reload_data()
         else:
             #print("train")
             self.train_step += 1
@@ -83,6 +84,10 @@ class KFoldWorker(BaseWorkerProcess):
 
     @abstractmethod
     def test(self):
+        pass
+
+    @abstractmethod
+    def reload_data(self):
         pass
 
 
@@ -122,7 +127,7 @@ class KFoldClient(Client):
     def get_worker(self, conn, id, ready_val, lock, train_idxs, test_idxs):
         pass
 
-    def create_worker(self, conn, id, ready_val, lock):
+    def train_test_idxs(self, id):
         _, tr_start, tr_stop = divide_work(worker_id=id, n_workers=self.n_cpus, workload=self.train_n)
         train_idxs_w = np.array(self.train_idxs[tr_start:tr_stop], copy=True)
         _, te_start, te_stop = divide_work(worker_id=id, n_workers=self.n_cpus, workload=self.test_n)
@@ -133,6 +138,10 @@ class KFoldClient(Client):
             raise Exception("Zero train idxs in worker {0}, train_idxs shape: {1}, train_n: {2}".format(id, self.train_idxs.shape, self.train_n))
         if test_idxs_w.shape[0] == 0:
             raise Exception("Zero test idxs in worker {0}, test_idxs shape: {1}, test_n: {2}".format(id, self.test_idxs.shape, self.test_n))
+        return train_idxs_w, test_idxs_w 
+
+    def create_worker(self, conn, id, ready_val, lock):
+        train_idxs_w, test_idxs_w = self.train_test_idxs(id=id)
         return self.get_worker(conn=conn, id=id, ready_val=ready_val, lock=lock, train_idxs=train_idxs_w, test_idxs=test_idxs_w)
 
     def on_worker_progress(self, msg, id):
@@ -158,11 +167,23 @@ class KFoldClient(Client):
             self.net_msg_size = ret
         #print("done")
 
+    def reassign_train_test_idxs(self):
+        for id in range(self.n_cpus):
+            train_idxs_w, test_idxs_w = self.train_test_idxs(id=id)
+            p = self.processes[id]
+            p.train_idxs = train_idxs_w
+            p.test_idxs = test_idxs_w
+
+
     def on_loop_end(self):
         test = self.step % self.test_interval == 0 and not self.test_loop
         if test:
             #print("test", self.test_loop, self.train_step, self.test_interval, self.step)
             self.test_loop = True
+            print("load next fold")
+            self.load()
+            print("reassign idxs")
+            self.reassign_train_test_idxs()
             self.msg_to_workers("test")
         else:
             #print("train", self.test_loop, self.train_step, self.test_interval, self.step)
@@ -186,7 +207,7 @@ class KFoldClient(Client):
     def get_data(self):
         pass
 
-    def on_init(self):
+    def load(self):
         self.data_files, self.train_idxs, self.test_idxs = self.get_data()
         self.train_n = len(self.train_idxs)
         self.test_n = len(self.test_idxs)
@@ -204,6 +225,9 @@ class KFoldClient(Client):
         if self.test_idxs.shape[0] == 0:
             raise Exception("Zero train idxs, train_n: {0}, client_id: {1}, n_clients: {2}".format(self.test_n, self.node_id, self.n_nodes))
         print("use {0} examples for training and {1} examples for testing".format(self.train_idxs.shape[0], self.test_idxs.shape[0]))
+
+    def on_init(self):
+        self.load()
         
         ret = socket_recv(file=self.net_file, sock=self.sock, buffer_size=self.buffer_size, msg_size=self.net_msg_size)
         if self.net_msg_size is None:
