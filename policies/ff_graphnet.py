@@ -101,7 +101,7 @@ class GraphNetLight(BasePolicy):
             dropout=dropout
             )
         self.model_fn_node_2 = MLP(
-            layer_dims=[8],
+            layer_dims=[5],
             activations=[None],
             name="mlp_node_2",
             dropout=dropout
