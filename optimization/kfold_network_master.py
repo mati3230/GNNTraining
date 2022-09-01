@@ -5,7 +5,6 @@ from abc import abstractmethod
 from .utils import socket_recv, socket_send
 from environment.utils import mkdir
 from .base_network_master import NodeProcess, Server
-import h5py
 
 
 class KFoldNodeProcess(NodeProcess):

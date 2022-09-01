@@ -8,6 +8,7 @@ from optimization.kfold_tf_server import KFoldTFServer
 from optimization.utils import load_graph_batch
 from optimization.base_trainer import BaseTrainer
 from optimization.utils import get_type, save_config
+import h5py
 
 
 def main():
