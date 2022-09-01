@@ -70,7 +70,8 @@ class Server(ABC):
             port=5000,
             buffer_size=4096,
             n_nodes=10,
-            recv_timeout=4
+            recv_timeout=4,
+            n_loops=-1
             ):
         self.on_init()
         # create server socket
@@ -87,6 +88,7 @@ class Server(ABC):
         self.n_nodes = n_nodes
         self.n_total_cpus = 0
         self.cpus_per_node = {}
+        self.n_loops = n_loops
 
         print("wait for nodes")
         while node_id < n_nodes:
@@ -198,16 +200,29 @@ class Server(ABC):
                 self.unlock(id=id)
         self.sock.close()
 
+    def on_stop(self):
+        return
+
     def start(self):
         """Main training loop
         """
         self.on_start()
-        while True:
+        if self.n_loops <= 0:
+            def eval_func(i, n):
+                return i < n
+        else:
+            def eval_func(i, n):
+                return True
+        n_loop = 0
+        while eval_func(n_loop, self.n_loops):
             self.on_recv()
             self.recv_data()
             self.on_loop()
             for id in range(self.n_nodes):
                 self.polled[id] = False
                 self.unlock(id=id)
+            n_loop += 1
         print("stop master loop")
         self.stop()
+        if self.n_loops <= 0:
+            self.on_stop()

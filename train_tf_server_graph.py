@@ -4,6 +4,7 @@ import os
 from graph_nets import utils_tf
 
 from optimization.train_tf_server import TFServer
+from optimization.kfold_tf_server import KFoldTFServer
 from optimization.utils import load_graph_batch
 from optimization.base_trainer import BaseTrainer
 from optimization.utils import get_type, save_config
@@ -98,22 +99,43 @@ def main():
     test_interval = trainer.params["test_interval"]
     train_p = trainer.params["train_p"]
 
-    tf_server = TFServer(
-        args_file=args.args_file,
-        model=policy,
-        global_norm_t=global_norm_t,
-        learning_rate=learning_rate,
-        test_interval=test_interval,
-        train_p=train_p,
-        model_dir=model_dir,
-        seed=seed,
-        p_data=args.p_data,
-        dataset=args.dataset,
-        ip=args.ip,
-        port=args.port,
-        buffer_size=args.buffer_size,
-        n_nodes=args.n_clients,
-        recv_timeout=args.recv_timeout)
+    if args.k_fold:
+        folds_dir = "./" + args.dataset + "/folds"
+        k_fold = len(os.listdir(folds_dir))
+        policy.save(directory=model_dir, filename="init_net")
+        tf_server = KFoldTFServer(
+            args_file=args.args_file,
+            model=policy,
+            global_norm_t=global_norm_t,
+            learning_rate=learning_rate,
+            test_interval=test_interval,
+            k_fold=k_fold,
+            model_dir=model_dir,
+            seed=seed,
+            p_data=args.p_data,
+            dataset=args.dataset,
+            ip=args.ip,
+            port=args.port,
+            buffer_size=args.buffer_size,
+            n_nodes=args.n_clients,
+            recv_timeout=args.recv_timeout)
+    else:
+        tf_server = TFServer(
+            args_file=args.args_file,
+            model=policy,
+            global_norm_t=global_norm_t,
+            learning_rate=learning_rate,
+            test_interval=test_interval,
+            train_p=train_p,
+            model_dir=model_dir,
+            seed=seed,
+            p_data=args.p_data,
+            dataset=args.dataset,
+            ip=args.ip,
+            port=args.port,
+            buffer_size=args.buffer_size,
+            n_nodes=args.n_clients,
+            recv_timeout=args.recv_timeout)
     print("tf server initialized")
     save_config(tf_server.log_dir, str(trainer.params))
     tf_server.start()

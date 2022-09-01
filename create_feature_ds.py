@@ -1036,7 +1036,8 @@ def subgraph(all_features, senders, receivers, unions, uni_senders, senders_idxs
             continue
         #"""
         store_graph(dataset=dataset, area_room_name=area_room_name, j=j, node_features=node_features,
-            senders=mapped_senders, receivers=mapped_receivers, unions=sampled_unions, edge_idxs=all_inter_idxs)
+            senders=mapped_senders, receivers=mapped_receivers, unions=sampled_unions, edge_idxs=all_inter_idxs,
+            subgraph=True)
         #"""
 
 
@@ -1129,13 +1130,17 @@ def subgraph_nodes(all_features, senders, receivers, unions, uni_senders, sender
             continue
         #"""
         store_graph(dataset=dataset, area_room_name=area_room_name, j=j, node_features=node_features,
-            senders=mapped_senders, receivers=mapped_receivers, unions=sampled_unions, edge_idxs=all_inter_idxs)
+            senders=mapped_senders, receivers=mapped_receivers, unions=sampled_unions, edge_idxs=all_inter_idxs,
+            subgraph=True)
         #"""
 
 
-def store_graph(dataset, area_room_name, j, node_features, senders, receivers, unions, edge_idxs):
+def store_graph(dataset, area_room_name, j, node_features, senders, receivers, unions, edge_idxs, subgraph=False):
     # e.g. ./s3dis/graphs/Area1_conferenceRoom_1.h5 will be stored as new file
-    hf = h5py.File("{0}/graphs/{1}_{2}.h5".format(dataset, area_room_name, j), "w")
+    fname = "{0}/graphs/{1}_{2}.h5".format(dataset, area_room_name, j)
+    if subgraph:
+        fname = "{0}/subgraphs/{1}_{2}.h5".format(dataset, area_room_name, j)
+    hf = h5py.File(fname, "w")
     hf.create_dataset("node_features", data=node_features)
     hf.create_dataset("senders", data=senders)
     hf.create_dataset("receivers", data=receivers)
@@ -1432,6 +1437,7 @@ def main(args):
             if recalc:
                 return
             if args.batch_size != 0:
+                mkdir(args.out_dataset + "/subgraphs")
                 wargs["dataset"] = args.out_dataset + "_batches"
                 process_range(workload=len(scenes), n_cpus=args.n_cpus, process_class=Process, target=process_scenes, args=wargs)
                 wargs["dataset"] = args.out_dataset + "_full"
