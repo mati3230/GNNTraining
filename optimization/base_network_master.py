@@ -224,8 +224,6 @@ class Server(ABC):
                 self.polled[id] = False
                 self.unlock(id=id)
             n_loop += 1
-            if self.n_loops > 0:
-                print("Loop {0}".format(n_loop))
         if self.n_loops > 0:
             self.on_stop()
         print("stop master loop")

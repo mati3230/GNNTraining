@@ -127,7 +127,7 @@ class KFoldServer(Server):
             buffer_size=buffer_size,
             n_nodes=n_nodes,
             recv_timeout=recv_timeout,
-            n_loops=k_fold * (self.test_interval * n_epochs + self.examples_per_fold)
+            n_loops=k_fold * (self.test_interval + self.examples_per_fold)
             )
 
     @abstractmethod
