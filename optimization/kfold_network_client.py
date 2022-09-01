@@ -205,11 +205,11 @@ class KFoldClient(Client):
     def get_data(self):
         pass
 
-    def load(self):
+    def load(self, verbose=False):
         self.data_files, self.train_idxs, self.test_idxs = self.get_data()
         self.train_n = len(self.train_idxs)
         self.test_n = len(self.test_idxs)
-        print("{0} examples for training, {1} examples for testing".format(self.train_n, self.test_n))
+        #print("{0} examples for training, {1} examples for testing".format(self.train_n, self.test_n))
         
         self.train_idxs = split_examples(train_idxs=self.train_idxs, train_n=self.train_n,
             client_id=self.node_id, n_clients=self.n_nodes)
@@ -219,13 +219,14 @@ class KFoldClient(Client):
         self.test_idxs = split_examples(train_idxs=self.test_idxs, train_n=self.test_n,
             client_id=self.node_id, n_clients=self.n_nodes)
         self.test_n = self.test_idxs.shape[0]
-        print("train_n: {0}, test_n: {1}".format(self.train_n, self.test_n))
+        if verbose:
+            print("train_n: {0}, test_n: {1}".format(self.train_n, self.test_n))
         if self.test_idxs.shape[0] == 0:
             raise Exception("Zero train idxs, train_n: {0}, client_id: {1}, n_clients: {2}".format(self.test_n, self.node_id, self.n_nodes))
-        print("use {0} examples for training and {1} examples for testing".format(self.train_idxs.shape[0], self.test_idxs.shape[0]))
+        #print("use {0} examples for training and {1} examples for testing".format(self.train_idxs.shape[0], self.test_idxs.shape[0]))
 
     def on_init(self):
-        self.load()
+        self.load(verbose=True)
         
         ret = socket_recv(file=self.net_file, sock=self.sock, buffer_size=self.buffer_size, msg_size=self.net_msg_size)
         if self.net_msg_size is None:

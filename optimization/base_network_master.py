@@ -57,7 +57,7 @@ class NodeProcess(Process):
         while self.work:
             self.send_update()
             recv_msg = self.recv_loop()
-            print("msg to master: {0}".format(recv_msg))
+            #print("msg to master: {0}".format(recv_msg))
             self.conn.send(recv_msg)
             self.ready_val.value = 0
             self.rv_wait()
@@ -200,8 +200,9 @@ class Server(ABC):
                 self.unlock(id=id)
         self.sock.close()
 
+    @abstractmethod
     def on_stop(self):
-        return
+        pass
 
     def start(self):
         """Main training loop

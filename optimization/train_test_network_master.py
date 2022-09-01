@@ -308,6 +308,9 @@ class TrainTestServer(Server):
     def on_train_write_end(self):
         pass
 
+    def on_stop(self):
+        return
+
     def write_train_results(self, adds):
         keys = list(self.losses[0].keys())
         n_losses = len(keys)

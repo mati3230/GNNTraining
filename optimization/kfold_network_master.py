@@ -243,6 +243,7 @@ class KFoldServer(Server):
         self.did = 0
 
     def on_stop(self):
+        print("save stats")
         avg_fs, raw_fs = self.avg_fold_stats(fold_stats=self.fold_stats)
         self.save_fold_stats(avg_fs=avg_fs, raw_fs=raw_fs)
 
