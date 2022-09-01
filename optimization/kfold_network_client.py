@@ -108,7 +108,7 @@ class KFoldClient(Client):
         self.net_msg_size = None
         self.test_loop = False
         self.train_step = 0
-        self.step = 0
+        self.step = -1
         super().__init__(
             n_cpus=n_cpus,
             shared_value=shared_value,
