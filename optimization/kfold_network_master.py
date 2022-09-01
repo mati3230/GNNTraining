@@ -243,7 +243,6 @@ class KFoldServer(Server):
         self.did = 0
 
     def on_stop(self):
-        print("save stats")
         avg_fs, raw_fs = self.avg_fold_stats(fold_stats=self.fold_stats)
         self.save_fold_stats(avg_fs=avg_fs, raw_fs=raw_fs)
 
@@ -270,13 +269,12 @@ class KFoldServer(Server):
         return avg_fs, raw_fs
 
     def save_fold_stats(self, avg_fs, raw_fs):
-        print("save_fold_stats")
         fname = "./" + self.dataset + "_" + self.experiment_name + ".txt"
         results = "Avg Stats\n"
         for k, v in avg_fs.items():
             results += str(k) + ": " + str(v) + "\n"
         results += "Raw Stats\n"
-        for k, v in avg_fs.items():
+        for k, v in raw_fs.items():
             results += str(k) + ": "
             for i in range(len(v)-1):
                 results += str(v[i]) + ", "
