@@ -23,7 +23,10 @@ class KFoldTFServer(KFoldServer):
             buffer_size=4096,
             n_nodes=10,
             recv_timeout=4,
-            save_param="Mean_Acc"
+            save_param="Mean_Acc",
+            experiment_name="1",
+            n_epochs=1,
+            set_test_interval=None
             ):
         self.args_file = args_file
         self.model = model
@@ -43,7 +46,10 @@ class KFoldTFServer(KFoldServer):
             port=port,
             buffer_size=buffer_size,
             n_nodes=n_nodes,
-            recv_timeout=recv_timeout
+            recv_timeout=recv_timeout,
+            experiment_name=experiment_name,
+            n_epochs=n_epochs,
+            set_test_interval=set_test_interval
             )
 
         current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")

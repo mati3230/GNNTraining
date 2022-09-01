@@ -22,6 +22,8 @@ def main():
     parser.add_argument("--p_data",type=float,default=1,help="Percentage of the data that should be used")
     parser.add_argument("--gpu",type=bool,default=False,help="Should gpu be used")
     parser.add_argument("--k_fold",type=bool,default=False,help="Use k fold cross validation")
+    parser.add_argument("--n_epochs",type=int,default=14,help="Number of epochs for k fold cross validation")
+    parser.add_argument("--experiment_name",type=str,default="1",help="Name of the experiment for output file of k fold cross validation")
     args = parser.parse_args()
     if not args.gpu:
         os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
@@ -105,6 +107,17 @@ def main():
         k_fold = len(os.listdir(folds_dir))
         print("k fold with {0} folds".format(k_fold))
         policy.save(directory=model_dir, filename="init_net")
+        def set_test_interval(dataset, n_epochs):
+            # TODO change for subgraph
+            fold_dir = "./" + dataset + "/folds"
+            n_folds = len(os.listdir(fold_dir))
+            fold_file = fold_dir + "/0.h5"
+            hf = h5py.File(fold_file, "r")
+            examples_per_fold = len(list(hf["area_names"]))
+            hf.close()
+            test_interval = examples_per_fold * (n_folds - 1) * n_epochs
+            print("set test interval to {0}".format(test_interval))
+            return test_interval, examples_per_fold
         tf_server = KFoldTFServer(
             args_file=args.args_file,
             model=policy,
@@ -120,7 +133,10 @@ def main():
             port=args.port,
             buffer_size=args.buffer_size,
             n_nodes=args.n_clients,
-            recv_timeout=args.recv_timeout)
+            recv_timeout=args.recv_timeout,
+            experiment_name=args.experiment_name,
+            n_epochs=args.n_epochs,
+            set_test_interval=set_test_interval)
     else:
         tf_server = TFServer(
             args_file=args.args_file,

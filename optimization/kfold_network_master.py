@@ -5,6 +5,7 @@ from abc import abstractmethod
 from .utils import socket_recv, socket_send
 from environment.utils import mkdir
 from .base_network_master import NodeProcess, Server
+import h5py
 
 
 class KFoldNodeProcess(NodeProcess):
@@ -46,7 +47,6 @@ class KFoldNodeProcess(NodeProcess):
 
     def on_run_start(self):
         self.train_step = 0
-        self.step = -1
         self.tested = False
 
     def receive_test_results(self):
@@ -78,18 +78,16 @@ class KFoldNodeProcess(NodeProcess):
         #print("gradients received")
 
     def recv_loop(self):
-        if self.step % self.test_interval == 0 and not self.tested:
+        if self.train_step > 0 and self.train_step % self.test_interval == 0 and not self.tested:
             # apply a test step
             self.receive_test_results()
             self.tested = True
-            self.step += 1
             return "recv_test"
         else:
             # apply a train step
             self.receive_gradients()
             self.tested = False
             self.train_step += 1
-            self.step += 1
             return "recv_train"
 
 class KFoldServer(Server):
@@ -106,7 +104,9 @@ class KFoldServer(Server):
             buffer_size=4096,
             n_nodes=10,
             recv_timeout=4,
-            experiment_name="1"  
+            experiment_name="1",
+            n_epochs = 1,
+            set_test_interval=None
             ):
         if k_fold < 2:
             raise Exception("Need more than k={0} folds".format(k_fold))
@@ -120,6 +120,7 @@ class KFoldServer(Server):
         self.dataset = dataset
         self.fold_stats = []
         self.experiment_name = experiment_name
+        self.test_interval, self.examples_per_fold = set_test_interval(dataset=dataset, n_epochs=n_epochs)
         self.save_model()
         super().__init__(
             ip=ip,
@@ -127,7 +128,7 @@ class KFoldServer(Server):
             buffer_size=buffer_size,
             n_nodes=n_nodes,
             recv_timeout=recv_timeout,
-            n_loops=2*k_fold
+            n_loops=k_fold * (self.test_interval * n_epochs + self.examples_per_fold)
             )
 
     @abstractmethod
@@ -221,11 +222,10 @@ class KFoldServer(Server):
     def on_start(self):
         self.train_step = 0
         self.test_step = 0
-        self.step = -1
         self.did = 0
 
     def on_recv(self):
-        self.test = self.step % self.test_interval == 0 and not self.test
+        self.test = self.train_step > 0 and self.train_step % self.test_interval == 0 and not self.test
 
     def on_loop(self):
         # data is already received at this point
@@ -239,7 +239,6 @@ class KFoldServer(Server):
             self.reduce()
             self.save_model()
             self.train_step += 1
-        self.step += 1
         self.did = 0
 
     def on_stop(self):
