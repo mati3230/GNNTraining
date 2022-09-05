@@ -1443,7 +1443,7 @@ def main(args):
                 mkdir(args.out_dataset + "/subgraphs")
                 wargs["dataset"] = args.out_dataset + "_batches"
                 process_range(workload=len(scenes), n_cpus=args.n_cpus, process_class=Process, target=process_scenes, args=wargs)
-                wargs["dataset"] = args.out_dataset + "_full"
+                wargs["dataset"] = args.out_dataset
             wargs["batch_size"] = 0
         else:
             print("Have not enough scenes to calculate k={0} folds".format(args.k_fold))

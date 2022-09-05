@@ -108,17 +108,41 @@ def main():
         k_fold = len(os.listdir(folds_dir))
         print("k fold with {0} folds".format(k_fold))
         policy.save(directory=model_dir, filename="init_net")
-        def set_test_interval(dataset, n_epochs):
+        def set_test_interval(dataset, n_epochs, fold_nr, k_fold):
+            subgraph_dir = "./" + dataset + "/subgraphs"
+            use_subgraph = os.path.exists(subgraph_dir)
             # TODO change for subgraph
             fold_dir = "./" + dataset + "/folds"
-            n_folds = len(os.listdir(fold_dir))
-            fold_file = fold_dir + "/0.h5"
-            hf = h5py.File(fold_file, "r")
-            examples_per_fold = len(list(hf["area_names"]))
-            hf.close()
-            test_interval = examples_per_fold * (n_folds - 1) * n_epochs
-            print("set test interval to {0} with {1} examples per fold ({2} folds)".format(test_interval, examples_per_fold, n_folds))
-            return test_interval, examples_per_fold
+            if use_subgraph:
+                folds = list(range(k_fold))
+                del folds[fold_nr]
+                train_areas = []
+                for i in range(fold_nr):
+                    fold_file = fold_dir + "/" + str(folds[i]) + ".h5"
+                    hf = h5py.File(fold_file, "r")
+                    train_area = list(hf["area_names"])
+                    train_area = [ta.decode() for ta in train_area]
+                    hf.close()
+                    train_areas.extend(train_area)
+                subgraph_dir = self.dataset_dir + "/../subgraphs"
+                files = os.listdir(subgraph_dir)
+                train_files = []
+                for train_area in train_areas:
+                    for i in range(len(files)):
+                        file = files[i]
+                        if file.starts_with(train_area):
+                            train_files.append(subgraph_dir + "/" + file)
+                test_interval = len(train_files)
+                return test_interval, None
+            else:
+                n_folds = len(os.listdir(fold_dir))
+                fold_file = fold_dir + "/0.h5"
+                hf = h5py.File(fold_file, "r")
+                examples_per_fold = len(list(hf["area_names"]))
+                hf.close()
+                test_interval = examples_per_fold * (n_folds - 1) * n_epochs
+                print("set test interval to {0} with {1} examples per fold ({2} folds)".format(test_interval, examples_per_fold, n_folds))
+                return test_interval, examples_per_fold
         tf_server = KFoldTFServer(
             args_file=args.args_file,
             model=policy,

@@ -27,6 +27,7 @@ class KFoldWorker(BaseWorkerProcess):
             start_with_work=True):
         self.test_bool = False
         self.train_step = 0
+        self.test_step = 0
         self.test_interval = test_interval
         self.k_fold = k_fold
         self.seed = seed
@@ -57,6 +58,7 @@ class KFoldWorker(BaseWorkerProcess):
         if self.test_bool:
             #print("test")
             self.test()
+            self.test_step += 1
             self.reload_data()
         else:
             #print("train")
@@ -111,6 +113,7 @@ class KFoldClient(Client):
         self.net_msg_size = None
         self.test_loop = False
         self.train_step = 0
+        self.test_step = 0
         super().__init__(
             n_cpus=n_cpus,
             shared_value=shared_value,
@@ -151,6 +154,7 @@ class KFoldClient(Client):
                 socket_send(file="./tmp/test_stats_" + str(i) + ".npz", sock=self.sock, buffer_size=self.buffer_size)
                 msg = self.sock.recv(128)
                 #print(msg.decode())
+            self.test_step += 1
         else:
             for i in range(self.n_cpus):
                 socket_send(file="./tmp/grads_" + str(i) + ".npz", sock=self.sock, buffer_size=self.buffer_size)

@@ -221,7 +221,7 @@ class KFoldTFWorker(KFoldWorker):
 
     def load_dataset(self):
         train_folds = list(range(self.k_fold))
-        test_fold = self.train_step
+        test_fold = self.test_step
         if test_fold >= self.k_fold:
             test_fold = 0
         del train_folds[test_fold]
@@ -288,7 +288,7 @@ class KFoldTFClient(KFoldClient):
 
     def load_dataset(self):
         train_folds = list(range(self.k_fold))
-        test_fold = self.train_step
+        test_fold = self.test_step
         if test_fold >= self.k_fold:
             test_fold = 0
         del train_folds[test_fold]
