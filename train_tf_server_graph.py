@@ -111,7 +111,6 @@ def main():
         def set_test_interval(dataset, n_epochs, fold_nr, k_fold):
             subgraph_dir = "./" + dataset + "/subgraphs"
             use_subgraph = os.path.exists(subgraph_dir)
-            # TODO change for subgraph
             fold_dir = "./" + dataset + "/folds"
             if use_subgraph:
                 folds = list(range(k_fold))
