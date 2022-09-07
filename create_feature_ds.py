@@ -1424,6 +1424,7 @@ def main(args):
 
         random.shuffle(scenes)
         n_scenes = len(scenes)
+        #n_scenes = 10
         enough_scenes = n_scenes >= args.k_fold
         print("Have {0} scenes".format(n_scenes))
         if enough_scenes:
@@ -1441,13 +1442,11 @@ def main(args):
                 return
             if args.batch_size != 0:
                 mkdir(args.out_dataset + "/subgraphs")
-                wargs["dataset"] = args.out_dataset + "_batches"
                 process_range(workload=len(scenes), n_cpus=args.n_cpus, process_class=Process, target=process_scenes, args=wargs)
-                wargs["dataset"] = args.out_dataset + "_full"
             wargs["batch_size"] = 0
         else:
             print("Have not enough scenes to calculate k={0} folds".format(args.k_fold))
-    process_range(workload=len(scenes), n_cpus=args.n_cpus, process_class=Process, target=process_scenes, args=wargs)
+    #process_range(workload=len(scenes), n_cpus=args.n_cpus, process_class=Process, target=process_scenes, args=wargs)
 
 
 def test_line_graph():

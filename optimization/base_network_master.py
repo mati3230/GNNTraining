@@ -48,6 +48,10 @@ class NodeProcess(Process):
     def recv_loop(self):
         pass
 
+    @abstractmethod
+    def on_stop(self):
+        pass
+
     def run(self):
         print("ready:", self.id)
         self.rv_wait()
@@ -58,9 +62,14 @@ class NodeProcess(Process):
             self.send_update()
             recv_msg = self.recv_loop()
             #print("msg to master: {0}".format(recv_msg))
-            self.conn.send(recv_msg)
+            try:
+                self.conn.send(recv_msg)
+            except:
+                break
             self.ready_val.value = 0
             self.rv_wait()
+        print("stop:", self.id)
+        self.on_stop()
         print("worker", self.id, "done")
 
 class Server(ABC):
@@ -70,9 +79,9 @@ class Server(ABC):
             port=5000,
             buffer_size=4096,
             n_nodes=10,
-            recv_timeout=4,
-            n_loops=-1
+            recv_timeout=4
             ):
+        self.work_loop = True
         self.on_init()
         # create server socket
         self.sock = socket.socket()
@@ -88,7 +97,6 @@ class Server(ABC):
         self.n_nodes = n_nodes
         self.n_total_cpus = 0
         self.cpus_per_node = {}
-        self.n_loops = n_loops
 
         print("wait for nodes")
         while node_id < n_nodes:
@@ -208,23 +216,14 @@ class Server(ABC):
         """Main training loop
         """
         self.on_start()
-        if self.n_loops > 0:
-            print("Execute {0} loops".format(self.n_loops))
-            def eval_func(i, n):
-                return i < n
-        else:
-            def eval_func(i, n):
-                return True
-        n_loop = 0
-        while eval_func(n_loop, self.n_loops):
+
+        while self.work_loop:
             self.on_recv()
             self.recv_data()
             self.on_loop()
             for id in range(self.n_nodes):
                 self.polled[id] = False
                 self.unlock(id=id)
-            n_loop += 1
-        if self.n_loops > 0:
-            self.on_stop()
+        self.on_stop()
         print("stop master loop")
         self.stop()

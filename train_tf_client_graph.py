@@ -164,7 +164,7 @@ class KFoldTFWorkerGraph(KFoldTFWorker):
             for train_area in train_areas:
                 for i in range(len(files)):
                     file = files[i]
-                    if file.starts_with(train_area):
+                    if file.startswith(train_area):
                         train_files.append(subgraph_dir + "/" + file)
         else:
             train_files = [self.dataset_dir + "/" + area_name + "_0.h5" for area_name in train_areas]
@@ -221,7 +221,7 @@ class KFoldTFClientGraph(KFoldTFClient):
             for train_area in train_areas:
                 for i in range(len(files)):
                     file = files[i]
-                    if file.starts_with(train_area):
+                    if file.startswith(train_area):
                         train_files.append(subgraph_dir + "/" + file)
         else:
             train_files = [self.dataset_dir + "/" + area_name + "_0.h5" for area_name in train_areas]

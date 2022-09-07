@@ -1,6 +1,7 @@
 import datetime
 import numpy as np
 from abc import abstractmethod
+from multiprocessing import Value
 
 from .utils import socket_recv, socket_send
 from environment.utils import mkdir
@@ -46,6 +47,7 @@ class KFoldNodeProcess(NodeProcess):
 
     def on_run_start(self):
         self.train_step = 0
+        self._train_step = 0
         self.tested = False
 
     def receive_test_results(self):
@@ -77,17 +79,24 @@ class KFoldNodeProcess(NodeProcess):
         #print("gradients received")
 
     def recv_loop(self):
-        if self.train_step > 0 and self.train_step % self.test_interval == 0 and not self.tested:
+        #print("server slave, test_interval:", self.test_interval.value, self._train_step == self.test_interval.value)
+        if self._train_step == self.test_interval.value:
             # apply a test step
             self.receive_test_results()
             self.tested = True
+            self._train_step = 0
             return "recv_test"
         else:
             # apply a train step
             self.receive_gradients()
             self.tested = False
             self.train_step += 1
+            self._train_step += 1
             return "recv_train"
+
+    def on_stop(self):
+        for i in range(self.n_node_cpus):
+            self.sock.send(("stop_" + str(i)).encode())
 
 class KFoldServer(Server):
     def __init__(
@@ -111,7 +120,7 @@ class KFoldServer(Server):
             raise Exception("Need more than k={0} folds".format(k_fold))
         mkdir("./tmp")
         self.test = False
-        self.test_interval = 2
+        self.test_interval = Value("i", 2)
         self.k_fold = k_fold
         self.model_dir = model_dir
         self.seed = seed
@@ -119,15 +128,19 @@ class KFoldServer(Server):
         self.dataset = dataset
         self.fold_stats = []
         self.experiment_name = experiment_name
-        self.test_interval, self.examples_per_fold = set_test_interval(dataset=dataset, n_epochs=n_epochs)
+        self.set_test_interval = set_test_interval
+        ti, self.examples_per_fold = self.set_test_interval(dataset=dataset,
+            n_epochs=n_epochs, k_fold=k_fold, fold_nr=0)
+        self.test_interval.value = ti
+        self.n_epochs = n_epochs
+        print("server master, test_interval:", self.test_interval.value)
         self.save_model()
         super().__init__(
             ip=ip,
             port=port,
             buffer_size=buffer_size,
             n_nodes=n_nodes,
-            recv_timeout=recv_timeout,
-            n_loops=k_fold * (self.test_interval + self.examples_per_fold)
+            recv_timeout=recv_timeout
             )
 
     @abstractmethod
@@ -165,7 +178,7 @@ class KFoldServer(Server):
         self.tresults = self.n_total_cpus * [None]
 
     def get_init_msg(self):
-        return str(self.test_interval) + "," + str(self.k_fold) + "," + str(self.seed) + "," + self.dataset + "," + str(self.p_data)
+        return str(self.test_interval.value) + "," + str(self.k_fold) + "," + str(self.seed) + "," + self.dataset + "," + str(self.p_data) + ", "  + str(self.n_epochs)
 
     def store_grads(self, msg, id):
         #print("Store gradients")
@@ -222,22 +235,32 @@ class KFoldServer(Server):
         self.train_step = 0
         self.test_step = 0
         self.did = 0
+        self._train_step = 0
 
     def on_recv(self):
-        self.test = self.train_step > 0 and self.train_step % self.test_interval == 0 and not self.test
+        self.test = self._train_step == self.test_interval.value
 
     def on_loop(self):
         # data is already received at this point
+        #print("server master, test_interval:", self.test_interval.value, self.test)
         if self.test:
             self.write_test_results()
             self.test_step += 1
             # method that resets the model 
             self.reset_method()
             self.save_model()
+            self._train_step = 0
+            ti, _ = self.set_test_interval(
+                dataset=self.dataset, n_epochs=self.n_epochs, k_fold=self.k_fold, fold_nr=self.test_step)
+            self.test_interval.value = ti
+            if self.test_step == self.k_fold:
+                print("Trained with all folds")
+                self.work_loop = False
         else:
             self.reduce()
             self.save_model()
             self.train_step += 1
+            self._train_step += 1
         self.did = 0
 
     def on_stop(self):

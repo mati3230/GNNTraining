@@ -324,6 +324,7 @@ def graph_convolution2(model_fn_node, model_fn_neigh, activation, input_graphs, 
 
     z_neigh = model_fn_neigh(nodes_with_aggregated_edges, is_training=training)
     z_node = model_fn_node(input_graphs.nodes, is_training=training)
+    #print(z_node.shape)
     updated_nodes = z_node + z_neigh
     if activation is not None:
         updated_nodes = activation(updated_nodes)

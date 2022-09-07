@@ -214,6 +214,9 @@ class KFoldTFWorker(KFoldWorker):
 
     def reload_data(self):
         self.data_files, _, _ = self.load_dataset()
+        data = np.load("./tmp/train_test_idxs_{0}.npz".format(self.id))
+        self.train_idxs = np.array(data["train_idxs"], copy=True)
+        self.test_idxs = np.array(data["test_idxs"], copy=True)
 
     @abstractmethod
     def load_folds(self, k_fold_dir, train_folds, test_fold):
@@ -221,7 +224,7 @@ class KFoldTFWorker(KFoldWorker):
 
     def load_dataset(self):
         train_folds = list(range(self.k_fold))
-        test_fold = self.train_step
+        test_fold = self.test_step
         if test_fold >= self.k_fold:
             test_fold = 0
         del train_folds[test_fold]
@@ -279,7 +282,7 @@ class KFoldTFClient(KFoldClient):
 
     def unpack_msg(self, msg, i):
         super().unpack_msg(msg=msg, i=i) 
-        self.args_file = msg[i+6]
+        self.args_file = msg[i+7]
         print("args_file: {0}".format(self.args_file))
 
     @abstractmethod
@@ -288,11 +291,11 @@ class KFoldTFClient(KFoldClient):
 
     def load_dataset(self):
         train_folds = list(range(self.k_fold))
-        test_fold = self.train_step
-        if test_fold >= self.k_fold:
+        test_fold = self.test_step
+        if test_fold >= self.k_fold or test_fold < 0:
             test_fold = 0
         del train_folds[test_fold]
-
+        print("client master, test fold:", test_fold)
         train_data, test_data = self.load_folds(k_fold_dir=self.k_fold_dir, train_folds=train_folds,
             test_fold=test_fold)
         train_idxs = np.arange(len(train_data), dtype=np.uint32)

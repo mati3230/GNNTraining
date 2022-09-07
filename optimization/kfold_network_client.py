@@ -1,6 +1,7 @@
 import numpy as np
 import math
 from abc import abstractmethod
+from multiprocessing import Value
 
 from .base_worker_process import BaseWorkerProcess
 from .base_network_client import Client
@@ -27,6 +28,8 @@ class KFoldWorker(BaseWorkerProcess):
             start_with_work=True):
         self.test_bool = False
         self.train_step = 0
+        self._train_step = 0
+        self.test_step = 0
         self.test_interval = test_interval
         self.k_fold = k_fold
         self.seed = seed
@@ -57,10 +60,13 @@ class KFoldWorker(BaseWorkerProcess):
         if self.test_bool:
             #print("test")
             self.test()
+            self.test_step += 1
             self.reload_data()
+            self._train_step = 0
         else:
             #print("train")
             self.train_step += 1
+            self._train_step += 1
             self.train()
         #print("done")
         return "done"
@@ -111,6 +117,9 @@ class KFoldClient(Client):
         self.net_msg_size = None
         self.test_loop = False
         self.train_step = 0
+        self._train_step = 0
+        self.test_step = 0
+        self.k_fold = None
         super().__init__(
             n_cpus=n_cpus,
             shared_value=shared_value,
@@ -135,6 +144,7 @@ class KFoldClient(Client):
             raise Exception("Zero train idxs in worker {0}, train_idxs shape: {1}, train_n: {2}".format(id, self.train_idxs.shape, self.train_n))
         if test_idxs_w.shape[0] == 0:
             raise Exception("Zero test idxs in worker {0}, test_idxs shape: {1}, test_n: {2}".format(id, self.test_idxs.shape, self.test_n))
+        np.savez("./tmp/train_test_idxs_{0}.npz".format(id), train_idxs=train_idxs_w, test_idxs=test_idxs_w)
         return train_idxs_w, test_idxs_w 
 
     def create_worker(self, conn, id, ready_val, lock):
@@ -150,52 +160,54 @@ class KFoldClient(Client):
             for i in range(self.n_cpus):
                 socket_send(file="./tmp/test_stats_" + str(i) + ".npz", sock=self.sock, buffer_size=self.buffer_size)
                 msg = self.sock.recv(128)
-                #print(msg.decode())
+                #print("test, received:", msg.decode())
         else:
             for i in range(self.n_cpus):
                 socket_send(file="./tmp/grads_" + str(i) + ".npz", sock=self.sock, buffer_size=self.buffer_size)
                 msg = self.sock.recv(128)
-                #print(msg.decode())
+                #print("train, received:", msg.decode())
             self.train_step += 1
+            self._train_step += 1
+        #print(msg)
         #print("done - wait for network update")
         ret = socket_recv(file=self.net_file, sock=self.sock, buffer_size=self.buffer_size, msg_size=self.net_msg_size)
         if self.net_msg_size is None:
             self.net_msg_size = ret
         #print("done")
 
-    def reassign_train_test_idxs(self):
-        for id in range(self.n_cpus):
-            train_idxs_w, test_idxs_w = self.train_test_idxs(id=id)
-            p = self.processes[id]
-            p.train_idxs = train_idxs_w
-            p.test_idxs = test_idxs_w
-
-
     def on_loop_end(self):
-        test = self.train_step > 0 and self.train_step % self.test_interval == 0 and not self.test_loop
+        test = self._train_step == self.test_interval.value
+        #print("client master, test_interval:", self.test_interval.value, test)
         if test:
             #print("test", self.test_loop, self.train_step, self.test_interval)
             self.test_loop = True
+            self.test_step += 1
             self.load()
-            self.reassign_train_test_idxs()
+            # save the train/test idxs to file
+            for id in range(self.n_cpus):
+                self.train_test_idxs(id=id)
             self.msg_to_workers("test")
+            self._train_step = 0
         else:
             #print("train", self.test_loop, self.train_step, self.test_interval)
             self.test_loop = False
             self.msg_to_workers("train")
     
     def unpack_msg(self, msg, i):
-        self.test_interval = int(msg[i+1])
+        ti = int(msg[i+1])
+        self.test_interval = Value("i", ti)
         self.k_fold = int(msg[i+2])
         self.seed = int(msg[i+3])
         self.dataset = msg[i+4]
         self.p_data = float(msg[i+5])
+        self.n_epochs = int(msg[i+6])
 
         print("test_interval: {0}".format(self.test_interval))
         print("k_fold: {0}".format(self.k_fold))
         print("seed: {0}".format(self.seed))
         print("dataset: {0}".format(self.dataset))
         print("p_data: {0}".format(self.p_data))
+        print("n_epochs: {0}".format(self.n_epochs))
 
     @abstractmethod
     def get_data(self):
@@ -204,6 +216,9 @@ class KFoldClient(Client):
     def load(self, verbose=False):
         self.data_files, self.train_idxs, self.test_idxs = self.get_data()
         self.train_n = len(self.train_idxs)
+        if self.k_fold is not None:
+            self.test_interval.value = self.train_n * self.n_epochs
+            #print("client master, update test_interval:", self.test_interval.value)
         self.test_n = len(self.test_idxs)
         #print("{0} examples for training, {1} examples for testing".format(self.train_n, self.test_n))
         

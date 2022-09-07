@@ -11,6 +11,37 @@ from optimization.utils import get_type, save_config
 import h5py
 
 
+def load_folds(dataset_dir, k_fold_dir, train_folds, test_fold):
+    test_fold_fname = k_fold_dir + "/" + str(test_fold) + ".h5"
+    train_folds_fnames = [k_fold_dir + "/" + str(train_fold) + ".h5" for train_fold in train_folds]
+
+    hf_test = h5py.File(test_fold_fname, "r")
+    test_areas = list(hf_test["area_names"])
+    test_areas = [ta.decode() for ta in test_areas]
+    hf_test.close()
+
+    train_areas = []
+    for fname in train_folds_fnames:
+        hf_train = h5py.File(fname, "r")
+        train_area = list(hf_train["area_names"])
+        train_area = [ta.decode() for ta in train_area]
+        hf_train.close()
+        train_areas.extend(train_area)
+    subgraph_dir = dataset_dir + "/../subgraphs"
+    use_subgraph = os.path.exists(subgraph_dir)
+    if use_subgraph:
+        files = os.listdir(subgraph_dir)
+        train_files = []
+        for train_area in train_areas:
+            for i in range(len(files)):
+                file = files[i]
+                if file.startswith(train_area):
+                    train_files.append(subgraph_dir + "/" + file)
+    else:
+        train_files = [dataset_dir + "/" + area_name + "_0.h5" for area_name in train_areas]
+    test_files = [dataset_dir + "/" + area_name + "_0.h5" for area_name in test_areas]
+    return train_files, test_files
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--ip",type=str,default="192.168.0.164",help="IP of the server")
@@ -82,6 +113,9 @@ def main():
     policy = policy_type(**policy_args)
     print("load example")
     files_dir = "./" + args.dataset + "/graphs"
+    if os.path.exists("./" + args.dataset + "/subgraphs"):
+        files_dir = "./" + args.dataset + "/subgraphs"
+        print("Use subgraphs in {0}".format(files_dir))
     files = os.listdir(files_dir)
 
     input_graphs, y, _ = load_graph_batch(i=0, dir=files_dir, files=files)
@@ -108,16 +142,30 @@ def main():
         k_fold = len(os.listdir(folds_dir))
         print("k fold with {0} folds".format(k_fold))
         policy.save(directory=model_dir, filename="init_net")
-        def set_test_interval(dataset, n_epochs):
+        def set_test_interval(dataset, n_epochs, k_fold, fold_nr):
             # TODO change for subgraph
             fold_dir = "./" + dataset + "/folds"
-            n_folds = len(os.listdir(fold_dir))
-            fold_file = fold_dir + "/0.h5"
-            hf = h5py.File(fold_file, "r")
-            examples_per_fold = len(list(hf["area_names"]))
-            hf.close()
-            test_interval = examples_per_fold * (n_folds - 1) * n_epochs
-            print("set test interval to {0} with {1} examples per fold ({2} folds)".format(test_interval, examples_per_fold, n_folds))
+            use_subgraphs = os.path.exists("./" + dataset + "/subgraphs")
+            if use_subgraphs:
+                train_folds = list(range(k_fold))
+                test_fold = fold_nr
+                if test_fold >= k_fold:
+                    test_fold = 0
+                del train_folds[test_fold]
+                #print("server master, update test_interval:", test_fold)
+                train_files, test_files = load_folds(
+                    dataset_dir="./" + dataset + "/graphs", k_fold_dir=fold_dir, train_folds=train_folds,
+                    test_fold=test_fold)
+                test_interval = len(train_files) * n_epochs
+                examples_per_fold = len(test_files)
+            else:
+                n_folds = len(os.listdir(fold_dir))
+                fold_file = fold_dir + "/" + str(fold_nr) + ".h5"
+                hf = h5py.File(fold_file, "r")
+                examples_per_fold = len(list(hf["area_names"]))
+                hf.close()
+                test_interval = examples_per_fold * (n_folds - 1) * n_epochs
+                print("set test interval to {0} with {1} examples per fold ({2} folds)".format(test_interval, examples_per_fold, n_folds))
             return test_interval, examples_per_fold
         tf_server = KFoldTFServer(
             args_file=args.args_file,
