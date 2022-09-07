@@ -142,6 +142,7 @@ def main():
         k_fold = len(os.listdir(folds_dir))
         print("k fold with {0} folds".format(k_fold))
         policy.save(directory=model_dir, filename="init_net")
+
         def set_test_interval(dataset, n_epochs, k_fold, fold_nr):
             # TODO change for subgraph
             fold_dir = "./" + dataset + "/folds"
@@ -167,6 +168,7 @@ def main():
                 test_interval = examples_per_fold * (n_folds - 1) * n_epochs
                 print("set test interval to {0} with {1} examples per fold ({2} folds)".format(test_interval, examples_per_fold, n_folds))
             return test_interval, examples_per_fold
+        
         tf_server = KFoldTFServer(
             args_file=args.args_file,
             model=policy,

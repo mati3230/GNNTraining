@@ -216,7 +216,6 @@ class Server(ABC):
         """Main training loop
         """
         self.on_start()
-
         while self.work_loop:
             self.on_recv()
             self.recv_data()
