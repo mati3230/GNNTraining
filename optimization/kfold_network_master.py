@@ -128,7 +128,7 @@ class KFoldServer(Server):
         self.dataset = dataset
         self.fold_stats = []
         self.experiment_name = experiment_name
-        
+
         self.set_test_interval = set_test_interval
         ti, self.examples_per_fold = self.set_test_interval(dataset=dataset,
             n_epochs=n_epochs, k_fold=k_fold, fold_nr=0)
@@ -247,14 +247,6 @@ class KFoldServer(Server):
         if self.test:
             self.write_test_results()
             self.test_step += 1
-            # method that resets the model 
-            if self.test_step == self.k_fold:
-                self.work = False
-            else:
-                self.test_interval, self.examples_per_fold = set_test_interval(
-                    dataset=dataset, n_epochs=n_epochs, fold_nr=self.test_step, k_fold=self.k_fold)
-                for i in range(len(self.processes)):
-                    self.processes[i].test_interval = self.test_interval
             self.reset_method()
             self.save_model()
             self._train_step = 0

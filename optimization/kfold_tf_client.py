@@ -112,8 +112,9 @@ class KFoldTFWorker(KFoldWorker):
         policy_type = get_type(trainer.params["policy_path"], trainer.params["policy_type"])
         self.model = policy_type(**policy_args)
         self.data_files, _, _ = self.load_dataset()
-        batch = self.load_batch(i=0, train_idxs=self.train_idxs, dir=self.k_fold_dir,
+        batch = self.load_batch(i=self.test_idxs[0], train_idxs=self.test_idxs, dir=self.k_fold_dir,
             files=self.data_files, batch_size=self.batch_size)
+        #print(batch[0].nodes.shape)
         self.prediction(batch=batch)
         self.model.reset()
         print("neural net ready")

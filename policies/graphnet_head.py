@@ -36,6 +36,7 @@ class GraphNetLight(BasePolicy):
             observation_size=observation_size)
 
     def action(self, obs, training=False, decision_boundary=0.5, edge_idxs=None):
+        #print(obs.nodes.shape)
         out_g1 = graph_convolution2(
             model_fn_node=self.model_fn_node_1,
             model_fn_neigh=self.model_fn_node_1,
