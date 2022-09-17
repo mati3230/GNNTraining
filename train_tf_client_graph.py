@@ -73,8 +73,8 @@ class KFoldTFWorkerGraph(KFoldTFWorker):
         y_ = tf.cast(y, tf.float32)
         probs = tf.cast(probs, tf.float32)
         #print(probs.shape)
-        #f_neg = 1
-        f_neg = 1.5
+        f_neg = 1
+        #f_neg = 1.5
         pos_bce_loss = -y_ * tf.math.log(tf.where(probs == 0, probs+1e-6, probs)) * (2 - f_neg)
         neg_inp = 1-probs
         neg_bce_loss =  -(1-y_) * tf.math.log(tf.where(neg_inp == 0, neg_inp+1e-6, neg_inp)) * f_neg 
@@ -138,7 +138,7 @@ class KFoldTFWorkerGraph(KFoldTFWorker):
         return load_graph_batch(i=idx, files=files)
 
     def load_batch(self, i, train_idxs, dir, files, batch_size):
-        return load_graph_batch(i=i, files=files)
+        return load_graph_batch(i=train_idxs[i], files=files)
 
     def load_folds(self, k_fold_dir, train_folds, test_fold):
         test_fold_fname = k_fold_dir + "/" + str(test_fold) + ".h5"
@@ -370,7 +370,7 @@ class TFWorkerGraph(TFWorker):
         return load_graph_batch(i=idx, dir=dir, files=files)
 
     def load_batch(self, i, train_idxs, dir, files, batch_size):
-        return load_graph_batch(i=i, dir=dir, files=files)
+        return load_graph_batch(i=train_idxs[i], dir=dir, files=files)
 
 
 class TFClientGraph(TFClient):

@@ -132,7 +132,7 @@ class TFWorker(TrainTestWorker):
         # training phase
         #print("Compute gradients")
         with tf.GradientTape() as tape:
-            batch = self.load_batch(i=self.batch_id, train_idxs=self.train_idxs, dir=self.dataset_dir,
+            batch = self.load_batch(i=self.train_idxs[self.batch_id], train_idxs=self.train_idxs, dir=self.dataset_dir,
                 files=self.data_files, batch_size=self.batch_size)
             
             losses = self.compute_losses(batch=batch)
@@ -161,7 +161,7 @@ class TFWorker(TrainTestWorker):
             self.batch_id = 0
 
     def test_prediction(self, i):
-        batch = self.load_batch(i=i, train_idxs=self.test_idxs, dir=self.dataset_dir, 
+        batch = self.load_batch(i=self.test_idxs[i], train_idxs=self.test_idxs, dir=self.dataset_dir, 
             files=self.data_files, batch_size=self.batch_size)
         action = self.prediction(batch=batch)
         action = action.numpy()

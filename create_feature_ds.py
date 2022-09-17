@@ -1278,6 +1278,10 @@ def process_scenes(id, args, min_i, max_i):
     sp_sizes = []
     for i in range(min_i, max_i):
         scene = scenes[i][0]
+        #print(scene)
+        # or scene != "./Scannet_Scenes/scene0083_00/P.npz"
+        #if scene != "./Scannet_Scenes/scene0083_00/P.npz":
+        #    continue
         strs = scene.split("/")
         area_room_name = strs[-2]
 

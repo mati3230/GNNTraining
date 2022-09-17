@@ -112,7 +112,7 @@ class KFoldTFWorker(KFoldWorker):
         policy_type = get_type(trainer.params["policy_path"], trainer.params["policy_type"])
         self.model = policy_type(**policy_args)
         self.data_files, _, _ = self.load_dataset()
-        batch = self.load_batch(i=self.test_idxs[0], train_idxs=self.test_idxs, dir=self.k_fold_dir,
+        batch = self.load_batch(i=0, train_idxs=self.test_idxs, dir=self.k_fold_dir,
             files=self.data_files, batch_size=self.batch_size)
         #print(batch[0].nodes.shape)
         self.prediction(batch=batch)
@@ -122,6 +122,7 @@ class KFoldTFWorker(KFoldWorker):
         # create arrays for the batches that are used in training and testing
 
         self.on_init_end()
+        #self.test()
 
     def get_n_t_batches(self):
         return math.floor(self.test_idxs.shape[0] / self.batch_size)
@@ -134,9 +135,14 @@ class KFoldTFWorker(KFoldWorker):
         # training phase
         #print("Compute gradients")
         with tf.GradientTape() as tape:
-            batch = self.load_batch(i=self.batch_id, train_idxs=self.train_idxs, dir=self.dataset_dir,
-                files=self.data_files, batch_size=self.batch_size)
-            
+            try:
+                batch = self.load_batch(i=self.batch_id, train_idxs=self.train_idxs, dir=self.dataset_dir,
+                    files=self.data_files, batch_size=self.batch_size)
+            except:
+                self.batch_id = 0
+                batch = self.load_batch(i=self.batch_id, train_idxs=self.train_idxs, dir=self.dataset_dir,
+                    files=self.data_files, batch_size=self.batch_size)
+
             losses = self.compute_losses(batch=batch)
             if self.verbose:
                 print(losses)
@@ -178,12 +184,15 @@ class KFoldTFWorker(KFoldWorker):
         f1s = []
         #print("Compute test")
         for i in range(self.n_t_batches):
+            #print("File:", self.data_files[self.test_idxs[i]])
             y, action = self.test_prediction(i=i)
+            #print(np.unique(action, return_counts=True))
             TP = np.sum((y == 1) & (action == 1))
             TN = np.sum((y == 0) & (action == 0))
             FN = np.sum((y == 1) & (action == 0))
             FP = np.sum((y == 0) & (action == 1))
             acc = (TP + TN) / y.shape[0]
+            #print("TP: {0}, TN: {1}, FN: {2}, FP: {3}".format(TP, TN, FN, FP))
             if TP + FP == 0:
                 prec = TP / (TP + FP + 1e-12)
             else:
