@@ -3,7 +3,7 @@ import numpy as np
 from .mlp import MLP
 
 from optimization.base_policy import BasePolicy
-from optimization.tf_utils import fast_dot, graph_convolution2
+from optimization.tf_utils import fast_dot, graph_convolution4
 
 
 class GraphNetLight(BasePolicy):
@@ -37,18 +37,18 @@ class GraphNetLight(BasePolicy):
 
     def action(self, obs, training=False, decision_boundary=0.5, edge_idxs=None):
         #print(obs.nodes.shape)
-        out_g1 = graph_convolution2(
+        out_g1 = graph_convolution4(
             model_fn_node=self.model_fn_node_1,
-            model_fn_neigh=self.model_fn_node_1,
+            #model_fn_neigh=self.model_fn_node_1,
             activation=tf.nn.relu,
             input_graphs=obs,
             training=training,
             att_model_fn=None)
         
         #"""
-        out_g2 = graph_convolution2(
+        out_g2 = graph_convolution4(
             model_fn_node=self.model_fn_node_2,
-            model_fn_neigh=self.model_fn_node_2,
+            #model_fn_neigh=self.model_fn_node_2,
             activation=tf.nn.relu,
             input_graphs=out_g1,
             training=training,

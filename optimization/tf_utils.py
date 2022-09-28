@@ -355,3 +355,28 @@ def graph_convolution3(model_fn_node, activation, input_graphs, training, att_mo
     output_graphs = z_graphs.replace(nodes=nodes_with_aggregated_edges)
 
     return output_graphs
+
+
+def graph_convolution4(model_fn_node, activation, input_graphs, training, att_model_fn=None):
+    # Send the node features to the edges that are being sent by that node. 
+    nodes_at_sender_edges = gn.blocks.broadcast_sender_nodes_to_edges(input_graphs)
+    if att_model_fn is not None:
+        att = attention2(input_graphs=input_graphs, model_fn=att_model_fn, training=training)
+        #print("----")
+        #print(att[att < 0])
+        #print(att[att > 1])
+        nodes_at_sender_edges *= att[:, None]
+
+    temporary_graph_sent = input_graphs.replace(edges=nodes_at_sender_edges)
+
+    # Average the all of the edges received by every node.
+    nodes_with_aggregated_edges = gn.blocks.ReceivedEdgesToNodesAggregator(tf.math.unsorted_segment_mean)(temporary_graph_sent)
+
+
+    updated_nodes = model_fn_node(0.5 * (input_graphs.nodes + nodes_with_aggregated_edges), is_training=training)
+    if activation is not None:
+        updated_nodes = activation(updated_nodes)
+
+    output_graphs = input_graphs.replace(nodes=updated_nodes)
+
+    return output_graphs
