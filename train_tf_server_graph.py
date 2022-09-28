@@ -161,6 +161,8 @@ def main():
                 examples_per_fold = len(test_files)
             else:
                 n_folds = len(os.listdir(fold_dir))
+                if fold_nr >= k_fold:
+                    fold_nr = 0
                 fold_file = fold_dir + "/" + str(fold_nr) + ".h5"
                 hf = h5py.File(fold_file, "r")
                 examples_per_fold = len(list(hf["area_names"]))
