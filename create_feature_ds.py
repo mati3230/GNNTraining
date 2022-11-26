@@ -1502,11 +1502,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        default="./S3DIS_Scenes")
+        default="./S3DIS_Scenes",
+        help="S3DIS_Scenes or Scannet_Scenes")
     parser.add_argument(
         "--out_dataset",
         type=str,
-        default="./s3dis")
+        default="./s3dis",
+        help="s3dis or scannet")
     parser.add_argument(
         "--n_cpus",
         type=int,
@@ -1516,12 +1518,12 @@ if __name__ == "__main__":
         "--batch_size",
         type=int,
         default=16,
-        help="Set to 0 to store a graph per scene, otherwise multiple graphs with batch_size will be stored")
+        help="Set to 0 to store a graph per scene, otherwise multiple graphs with batch_size will be stored (balanced batches variant)")
     parser.add_argument(
         "--depth",
         type=int,
         default=3,
-        help="should be equal to the number of graph convolutions; only used if batch_size > 0")
+        help="should be at least equal to the number of graph convolutions; only used if batch_size > 0")
     parser.add_argument(
         "--use_line_graph",
         type=bool,
